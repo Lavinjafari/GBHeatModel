@@ -1,31 +1,23 @@
-# Python cache / compiled
+# ==== Python junk ====
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 
-# Virtual environments
-.venv/
-venv/
-env/
-GBheat/
-
-# IDE / OS
-.vscode/
-.idea/
-.DS_Store
-Thumbs.db
-
-# Data / outputs (even if not in this folder now, ignore for future)
+# ==== Heavy data to keep locally but NOT in Git ====
+Aggregation_files/
 data/
-datasets/
-input_data/
+data/heat_demand_profiles_patterns/
+data/Atlite/
+data/FES_Spatial_Heat_Model/
+data/LAs_shapefile_2021/
+data/air_temp
 outputs/
-results/
-figures/
-temp/
-logs/
+Figures/
 
+# single heavy files
+data/UK_Atlite_Grid_sq.gpkg
+normalised_half_hourly_profiles.xlsx
 # Common large scientific / archive files
 *.nc
 *.h5
@@ -33,4 +25,15 @@ logs/
 *.zarr
 *.zip
 *.tar
-*.tar.gz
+*.tar.
+
+# Virtual environments
+.env
+GBheat/
+
+# IDE / OS junk
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
