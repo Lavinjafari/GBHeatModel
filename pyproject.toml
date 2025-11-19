@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gbheatmodel"
+version = "0.1.0"
+description = "Heating demand modelling for Great Britain with electrified heating"
+authors = [
+    { name = "Lavin Jafaripour", email = "zjafaripour69@gmail.com" }
+]
+readme = "README.md"
+requires-python = ">=3.9"
+
+dependencies = [
+    "numpy",
+    "pandas",
+    "xarray",
+    "pypsa",
+    "geopandas",
+    "tqdm"
+]
+
+[project.urls]
+Homepage = "https://github.com/Lavinjafari/GBHeatModel"
+
+# Your code lives under src/
+[tool.setuptools.packages.find]
+where = ["src"]

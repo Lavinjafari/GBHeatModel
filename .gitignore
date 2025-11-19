@@ -1,0 +1,36 @@
+# Python cache / compiled
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+GBheat/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Data / outputs (even if not in this folder now, ignore for future)
+data/
+datasets/
+input_data/
+outputs/
+results/
+figures/
+temp/
+logs/
+
+# Common large scientific / archive files
+*.nc
+*.h5
+*.hdf5
+*.zarr
+*.zip
+*.tar
+*.tar.gz

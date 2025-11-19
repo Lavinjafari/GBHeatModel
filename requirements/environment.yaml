@@ -1,0 +1,60 @@
+name: esm-ws-24-25
+channels:
+- conda-forge
+dependencies:
+- python>=3.12,<3.13
+- pip
+
+  # main packages
+- numpy
+- scipy
+- pandas>=2
+- geopandas>=1
+- xarray
+- networkx
+- yaml
+- pyomo
+- netcdf4
+- pypsa>=0.31
+- atlite>=0.2.14
+- powerplantmatching>=0.6
+- rasterio>=1.3.2,<1.4
+- pysheds
+- pyarrow
+- numba
+
+  # interactive python
+- ipython
+- jupyterlab
+
+  # reading particular file types
+- tabula-py
+- xlrd
+- lxml
+- pytables
+- pyxlsb
+- openpyxl
+- libgdal-hdf5
+- libgdal-netcdf
+
+  # geodata utilities
+- shapely>2
+- pyepsg
+- cartopy>=0.22
+- country_converter
+
+  # plotting
+- matplotlib>=3.6
+- plotly
+- hvplot
+- holoviews
+- geoviews>=1.10
+- graphviz
+
+  # publishing
+- jupyter-book
+- ghp-import
+- pre-commit
+
+- pip:
+  - highspy
