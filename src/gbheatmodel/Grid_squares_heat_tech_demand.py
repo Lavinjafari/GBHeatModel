@@ -1,92 +1,140 @@
+from __future__ import annotations
+
 import geopandas as gpd
 import pandas as pd
-import numpy as np
-import atlite
 
-import matplotlib.pyplot as plt
-import heat_pattern
-import FES_heat_supply_data
-from shapely.geometry import Point
-from sklearn.neighbors import NearestNeighbors
-import FES_shapefile_LAs_matching
-import LA_overlaps_within_gird_squares
-import heat_tech_distribution
+# internal package imports
+from . import FES_heat_supply_data           # kept for future use if needed
+from . import FES_shapefile_LAs_matching     # currently used indirectly via heat_tech_distribution
+from . import LA_overlaps_within_grid_squares
+from . import heat_tech_distribution
+from .path import path_in_data, ensure_dir
 
-def calculate_heat_demand_for_grid_squares(LA_overlaps, weather_year, future_year, FES, scenario, LA_shapefile, grid_squares):
-    
-    # LA_shapefile = gpd.read_file(r'data\LA_UK\new_version\UK_LAs_Boundaries_files\LAs_shapefile_2021\LAD_DEC_2021_GB_BFC.shp')
-   
-    LA_overlaps = LA_overlaps_within_gird_squares.calc_LA_overlap_within_grid_square(grid_squares,
-                                                                                     LA_shapefile,
-                                                                                     weather_year)
-    
-    df_merged = heat_tech_distribution.merge_shapefile_FES_heating_tech_file(grid_squares, 
-                                                                             LA_overlaps, 
-                                                                             future_year,
-                                                                             FES, 
-                                                                             scenario,
-                                                                             weather_year)
-    
-    df = heat_tech_distribution.distribute_all_heating_techs_to_grids(df_merged,
-                                                                      LA_overlaps, 
-                                                                      future_year,
-                                                                      FES, 
-                                                                      scenario,
-                                                                      weather_year)
+def calculate_heat_demand_for_grid_squares(
+    total_dwellings: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Aggregate heating technology demand to grid-square level from total_dwellings.
 
-    # Identify heating tech columns
-    non_tech = ['Grid_ID', 'Local_Authority', 'Year', 'Scenario', 'Sector']
-    tech = df.select_dtypes(include='number').columns.difference(non_tech)
-    if 'Grid_ID' in df.index.names:
+    Parameters
+    ----------
+    total_dwellings : DataFrame
+        Output of `distribute_all_heating_techs_to_grids`, containing:
+        - 'Grid_ID'
+        - possibly 'Local_Authority', 'Year', 'Scenario', 'Sector'
+        - tech columns (numeric)
+
+    Returns
+    -------
+    DataFrame
+        Heat demand (or dwellings) per grid square and technology.
+    """
+
+    # Work on a copy to avoid modifying the caller's DataFrame
+    df = total_dwellings.copy()
+
+    # Make sure Grid_ID is a column, not an index
+    if "Grid_ID" in df.index.names:
         df = df.reset_index()
 
+    # Identify non-tech metadata columns (keep flexible)
+    meta_cols_base = ["Grid_ID", "Local_Authority", "Year", "Scenario", "Sector"]
+    meta_cols = [col for col in meta_cols_base if col in df.columns]
 
-    # Aggregate demand
-    grid_square_hd = df.groupby('Grid_ID')[tech].sum().reset_index()
-    
-    # Extract non-numeric metadata (first entry per Grid_ID)
-    meta = df.groupby('Grid_ID')[['Year', 'Scenario', 'Sector']].first().reset_index()
-    # Merge back
-    grid_square_hd = pd.merge(grid_square_hd, meta, on='Grid_ID', how='left')
-    meta_cols = ['Grid_ID', 'Year', 'Scenario', 'Sector']
-    # Reorder columns in the output DataFrame
-    tech_cols = [col for col in grid_square_hd.columns if col not in meta_cols]
-    grid_square_hd = grid_square_hd[meta_cols + tech_cols]
-    # Drop columns from index 17 onward
-    grid_square_hd = grid_square_hd.iloc[:, :18]
+    # Tech columns are numeric columns that are not in the metadata list
+    tech_cols = df.select_dtypes(include="number").columns.difference(meta_cols)
 
-    grid_square_hd.to_csv(r'data\LA_UK\new_version\data_call\scenario_alignment_data\heat_techs_distribution_grid_square.csv', index=False)
+    # 1. Aggregate numeric values per grid square
+    grid_square_hd = df.groupby("Grid_ID")[tech_cols].sum().reset_index()
+
+    # 2. Get one row of metadata per Grid_ID (first occurrence)
+    if any(c in df.columns for c in ["Year", "Scenario", "Sector"]):
+        meta_cols_for_group = [c for c in ["Year", "Scenario", "Sector"] if c in df.columns]
+        meta = (
+            df.groupby("Grid_ID")[meta_cols_for_group]
+            .first()
+            .reset_index()
+        )
+        grid_square_hd = pd.merge(
+            grid_square_hd,
+            meta,
+            on="Grid_ID",
+            how="left",
+        )
+
+    # 3. Reorder columns: metadata first, then techs
+    ordered_meta_cols = [c for c in ["Grid_ID", "Year", "Scenario", "Sector"] if c in grid_square_hd.columns]
+    ordered_tech_cols = [c for c in grid_square_hd.columns if c not in ordered_meta_cols]
+    grid_square_hd = grid_square_hd[ordered_meta_cols + ordered_tech_cols]
+
+    # 4. Save to CSV (same behaviour as before)
+    out_path = path_in_data("outputs", "heat_techs_distribution_grid_square.csv")
+    ensure_dir(out_path.parent)
+    grid_square_hd.to_csv(out_path, index=False)
 
     return grid_square_hd
 
 
+def prepare_site_to_calc_air_temp(grid_square_hd: pd.DataFrame) -> pd.DataFrame:
+    """
+    Prepare grid-square coordinate file for air-temperature calculation.
 
+    Parameters
+    ----------
+    grid_square_hd : DataFrame
+        Output from calculate_heat_demand_for_grid_squares, containing 'Grid_ID'.
 
-# def prepare_site_to_calc_air_temp(grid_square_hd):
-#     # Only keep 'Grid_ID' column
-#     df = grid_square_hd[['Grid_ID']].copy()
+    Returns
+    -------
+    DataFrame
+        DataFrame with columns ['Grid_ID', 'x', 'y'] saved to CSV.
+    """
+    df = grid_square_hd[["Grid_ID"]].copy()
 
-#     # Separate x and y coordinates from 'Grid_ID'
-#     df[['x', 'y']] = df['Grid_ID'].str.split('_', expand=True).astype(float)
-#     # df.set_index('Grid_ID', inplace=True)
+    # Separate x and y coordinates from 'Grid_ID'
+    df[["x", "y"]] = df["Grid_ID"].str.split("_", expand=True).astype(float)
 
-#     # Save to CSV
-#     df.to_csv(r'data\LA_UK\new_version\grid_square_coord.csv', index=False)
+    # Save to CSV using centralised path
+    out_path = path_in_data("outputs", "grid_square_coord.csv")
+    ensure_dir(out_path.parent)
+    df.to_csv(out_path, index=False)
 
-#     return df
+    return df
 
 
 if __name__ == "__main__":
     weather_year = 2024
-    FES = '2022'
+    FES = "2022"
     future_year = 2050
     scenario = "LW"
-    LA_shapefile = gpd.read_file(r'data\LA_UK\new_version\UK_LAs_Boundaries_files\LAs_shapefile_2021\LAD_DEC_2021_GB_BFC.shp')
-    grid_squares =  gpd.read_file(r'data\LA_UK\new_version\data_call\UK_Atlite_Grid_sq.gpkg')
-    LA_overlaps = LA_overlaps_within_gird_squares.calc_LA_overlap_within_grid_square(grid_squares, LA_shapefile, weather_year)
+
+    # Use path.py for shapefiles and grids
+    LA_path = path_in_data(
+        "LAs_shapefile_2021",
+        "LAD_DEC_2021_GB_BFC.shp",
+    )
+    grids_path = path_in_data(
+        "UK_Atlite_Grid_sq.gpkg",
+    )
+
+    LA_shapefile = gpd.read_file(LA_path)
+    grid_squares = gpd.read_file(grids_path)
+
+    LA_overlaps = LA_overlaps_within_grid_squares.calc_LA_overlap_within_grid_square(
+        grid_squares, LA_shapefile, weather_year
+    )
 
     # Calculate heat demand
-    grid_square_hd = calculate_heat_demand_for_grid_squares(LA_overlaps, weather_year, future_year, FES, scenario, LA_shapefile, grid_squares)
+    grid_square_hd = calculate_heat_demand_for_grid_squares(
+        LA_overlaps,
+        weather_year,
+        future_year,
+        FES,
+        scenario,
+        LA_shapefile,
+        grid_squares,
+    )
 
     # Use heat demand result to prepare air temperature grid
     site = prepare_site_to_calc_air_temp(grid_square_hd)
+    print(site.head())

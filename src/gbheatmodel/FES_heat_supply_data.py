@@ -1,41 +1,105 @@
-import pandas as pd
+# src/gbheatmodel/FES_heat_supply_data.py
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional
+
 import numpy as np
+import pandas as pd
 
-def read_FES_heat_supply(FES):
+from .path import path_in_data
 
-    if FES == '2021':
-        dfs = []
-        for year in ['2020', '2025', '2030', '2035']:
-            file = 'data/FES Spatial Heat Model/' + FES + '/la_level_outputs_' + year + '_domestic_all_scenarios_org_updated.csv'
-            df_FES = pd.read_csv(file, index_col=1)
-            dfs.append(df_FES)
-        df = pd.concat(dfs).fillna(0)
 
-    elif FES == '2022':
-        dfs = []
-        for year in ['2020', '2025', '2030', '2035', '2040', '2045', '2050']:
-            file = 'data/FES Spatial Heat Model/' + FES + '/fes22_la_level_outputs_' + year + '_domestic_all_scenarios.csv'
-            df_FES = pd.read_csv(file, index_col=1)
-            dfs.append(df_FES)
-        df = pd.concat(dfs).fillna(0)
-    
+def read_FES_heat_supply(FES: str) -> pd.DataFrame:
+    """
+    Read all available FES spatial heat supply data for a given FES vintage.
+
+    Parameters
+    ----------
+    FES : {"2021", "2022"}
+        FES dataset version.
+
+    Returns
+    -------
+    DataFrame
+        Concatenated FES data across all years for the chosen vintage.
+        Index is column 1 of the CSV (typically LA name / code).
+    """
+    FES = str(FES)
+
+    if FES == "2021":
+        years = ["2020", "2025", "2030", "2035"]
+        pattern = "la_level_outputs_{year}_domestic_all_scenarios_org_updated.csv"
+    elif FES == "2022":
+        years = ["2020", "2025", "2030", "2035", "2040", "2045", "2050"]
+        pattern = "fes22_la_level_outputs_{year}_domestic_all_scenarios.csv"
+    else:
+        raise ValueError(f"Unsupported FES vintage: {FES!r}. Expected '2021' or '2022'.")
+
+    dfs: list[pd.DataFrame] = []
+
+    # Use path_in_data, same style as heat_pattern.py
+    # e.g. data/FES_Spatial_Heat_Model/2022
+    base_dir: Path = path_in_data("FES_Spatial_Heat_Model", FES)
+
+    for year in years:
+        file_path = base_dir / pattern.format(year=year)
+        df_FES = pd.read_csv(file_path, index_col=1)
+        dfs.append(df_FES)
+
+    df = pd.concat(dfs, axis=0).fillna(0)
     return df
 
-def year_FES_heat_supply(year, FES, scenario=None):
 
-    if FES == '2021':
+def year_FES_heat_supply(
+    year: int,
+    FES: str,
+    scenario: Optional[str] = None,
+) -> pd.DataFrame:
+    """
+    Select FES heat supply data for the nearest available year <= target year
+    and (optionally) a given scenario.
+
+    Parameters
+    ----------
+    year : int
+        Target year (e.g. 2031). The function will map this to the closest
+        available FES year <= `year`.
+    FES : {"2021", "2022"}
+        FES dataset version.
+    scenario : str, optional
+        Scenario name (e.g. "LW", "CT", "ST", "FS").
+        If provided, the DataFrame is filtered to this scenario.
+
+    Returns
+    -------
+    DataFrame
+        FES data for the chosen vintage, mapped year, and scenario.
+    """
+    FES = str(FES)
+
+    if FES == "2021":
         year_list = np.array([2020, 2025, 2030, 2035])
-        closest_year = year_list[year_list <= year].max()
-    
-    elif FES == '2022':
+    elif FES == "2022":
         year_list = np.array([2020, 2025, 2030, 2035, 2040, 2045, 2050])
-        closest_year = year_list[year_list <= year].max()
+    else:
+        raise ValueError(f"Unsupported FES vintage: {FES!r}. Expected '2021' or '2022'.")
+
+    # Find the closest available FES year <= requested year
+    closest_year = year_list[year_list <= year].max()
 
     df = read_FES_heat_supply(FES)
-    df = df.loc[df['Year'] == closest_year]
-    df = df.loc[df['Scenario'] == scenario]
+    df = df.loc[df["Year"] == closest_year]
+
+    if scenario is not None:
+        df = df.loc[df["Scenario"] == scenario]
 
     return df
 
-if __name__ == '__main__':
-    year_FES_heat_supply(2031, '2021', scenario='LW')
+
+if __name__ == "__main__":
+    # Simple manual test
+    df_test = year_FES_heat_supply(2031, "2021", scenario="LW")
+    print(df_test.head())
+    print(f"Rows: {len(df_test)}")

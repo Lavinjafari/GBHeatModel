@@ -1,53 +1,86 @@
-import pandas as pd
-import numpy as np
-from collections import defaultdict
+from __future__ import annotations
 
-import heat_pattern_heat_demand as hphd
+import pandas as pd
 import pprint
 
+# internal package imports
+from . import heat_pattern_heat_demand as hphd
+from .path import path_in_data, ensure_dir
 
 
-def heat_demand_per_pattern_per_grid_sq_one_day(grid_id,Td,weather_year):
-    
-    
-    
-    # total_dwellings = base_pattern  # Total number of dwellings (1 dwelling)
+def heat_demand_per_pattern_per_grid_sq_one_day(
+    grid_id: str,
+    Td: float,
+    weather_year: int,
+) -> dict[str, float]:
+    """
+    Calculate daily heat demand per heating pattern for a single grid square,
+    for one day with average temperature Td.
 
-    # daytime = total_dwellings['daytime']
-    # bimodal = total_dwellings['bi-modal']
-    # continuous = total_dwellings['continuous']
-    HD_pattern = {'daytime': hphd.heat_demand_for_one_pattern_for_one_day('daytime', Td) ,
-               'bi-modal': hphd. heat_demand_for_one_pattern_for_one_day('bi-modal', Td) ,
-               'continuous': hphd.heat_demand_for_one_pattern_for_one_day('continuous', Td)}
-    
-    df = pd.DataFrame({k: [v] for k, v in HD_pattern.items()})
+    Parameters
+    ----------
+    grid_id : str
+        Grid square ID (not directly used in the formula yet, but kept
+        for consistency and possible extensions).
+    Td : float
+        Average daily external temperature [°C].
+    weather_year : int
+        Weather year (kept for interface consistency).
+
+    Returns
+    -------
+    dict[str, float]
+        Dictionary:
+            {
+                "daytime":    HD_daytime,
+                "bi-modal":   HD_bimodal,
+                "continuous": HD_continuous,
+            }
+    """
+
+    HD_pattern = {
+        "daytime": hphd.heat_demand_for_one_pattern_for_one_day("daytime", Td),
+        "bi-modal": hphd.heat_demand_for_one_pattern_for_one_day("bi-modal", Td),
+        "continuous": hphd.heat_demand_for_one_pattern_for_one_day("continuous", Td),
+    }
 
     return HD_pattern
 
 
-
-
 if __name__ == "__main__":
-    # Inputs
+    # Example manual test for one grid square across the whole year
     grid_id = "-0.25_50.75"
     weather_year = 2012
-    air_temp_daily = pd.read_csv('data/LA_UK/new_version/air_temp_new/average_day_air_temp_' + str(weather_year) + '.csv')
-    grid_sqs = pd.read_csv('data/LA_UK/new_version/air_temp_new/air_temp_2012.csv', index_col=0).columns
 
-    for day in range(0, 365):
+    # Paths for air temperature
+    avg_air_temp_path = path_in_data(
+        "air_temp",
+        f"average_day_air_temp_{weather_year}.csv",
+    )
+    air_temp_daily = pd.read_csv(avg_air_temp_path, index_col=0)
+
+    # Ensure output directory
+    out_dir = path_in_data("outputs",)
+    ensure_dir(out_dir)
+
+    # We will collect results for all days in a single DataFrame
+    records = []
+
+    for day in range(365):
         Td = air_temp_daily[grid_id].iloc[day]
+        HD_dict = heat_demand_per_pattern_per_grid_sq_one_day(grid_id, Td, weather_year)
 
-        # Run and return the dictionary
-        HD_dict = heat_demand_per_pattern_per_grid_sq_one_day(grid_id, Td)
+        date = pd.Timestamp(f"{weather_year}-01-01") + pd.Timedelta(days=day)
+        record = {"date": date, **HD_dict}
+        records.append(record)
 
-        # 🔍 Pretty print the dictionary
-        print(f"\n📅 Day {day + 1}")
+        print(f"\n📅 Day {day + 1} ({date.date()}), Td = {Td:.2f}°C")
         pprint.pprint(HD_dict)
 
-        # Convert to DataFrame for saving
-        df = pd.DataFrame({k: [v] for k, v in HD_dict.items()})
-        df.to_csv(f'data/LA_UK/new_version/test/heat_demand_one_day_patterns_{grid_id}.csv')
+    df = pd.DataFrame(records).set_index("date")
 
-        print("✅ Saved CSV shape:", df.shape)
+    out_path = out_dir / f"heat_demand_one_day_patterns_{grid_id}_{weather_year}.csv"
+    df.to_csv(out_path)
 
-    
+    print("\n✅ Saved CSV:", out_path)
+    print("✅ Saved CSV shape:", df.shape)
