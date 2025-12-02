@@ -4,9 +4,35 @@ from glob import glob
 import os
 import seaborn as sns
 
+from gbheatmodel.path import path_in_data  # NEW
 
 
-def plot_daily_avg_profile_one_grid(scaled_profiles_dict, grid_id):
+def _save_current_figure(
+    filename: str,
+    subfolder: str,
+    dpi: int = 300,
+) -> None:
+    """
+    Save the current Matplotlib figure into outputs/plots/<subfolder>/filename.
+    """
+    plots_dir = path_in_data("outputs", "plots", subfolder)
+    os.makedirs(plots_dir, exist_ok=True)
+
+    filepath = os.path.join(plots_dir, filename)
+    fig = plt.gcf()
+    fig.savefig(filepath, dpi=dpi, bbox_inches="tight")
+    print(f"💾 Plot saved to: {filepath}")
+
+
+def plot_daily_avg_profile_one_grid(
+    scaled_profiles_dict,
+    grid_id,
+    *,
+    save: bool = False,
+    subfolder: str = "daily_avg_profiles",
+    filename: str | None = None,
+):    
+    
     if grid_id not in scaled_profiles_dict:
         print(f"Grid ID '{grid_id}' not found.")
         return
@@ -26,18 +52,29 @@ def plot_daily_avg_profile_one_grid(scaled_profiles_dict, grid_id):
     for tech, profile in daily_avg_profiles.items():
         plt.plot(time_axis, profile, label=tech)
 
-    plt.title(f"Daily Average Heating Profile – Grid {grid_id}")
+        plt.title(f"Daily Average Heating Profile – Grid {grid_id}")
     plt.xlabel("Time of Day")
     plt.ylabel("Average Demand (kWh)")
     plt.xticks(rotation=45)
     plt.grid(True)
     plt.legend()
     plt.tight_layout()
+
+    if save:
+        if filename is None:
+            filename = f"daily_avg_grid_{grid_id}.png"
+        _save_current_figure(filename, subfolder=subfolder)
+
     plt.show()
 
-
-
-def plot_heatmap_one_grid(scaled_profiles_dict, grid_id):
+def plot_heatmap_one_grid(
+    scaled_profiles_dict,
+    grid_id,
+    *,
+    save: bool = False,
+    subfolder: str = "grid_heatmaps",
+):
+    
     if grid_id not in scaled_profiles_dict:
         print(f"Grid ID '{grid_id}' not found.")
         return
@@ -46,16 +83,28 @@ def plot_heatmap_one_grid(scaled_profiles_dict, grid_id):
 
     for tech in df.columns:
         daily_matrix = df[tech].values.reshape(-1, 48)
-        plt.figure(figsize=(12, 5))
-        sns.heatmap(daily_matrix, cmap='YlGnBu', cbar_kws={'label': 'kWh'})
         plt.title(f"Heatmap of {tech} Demand – Grid {grid_id}")
         plt.xlabel("Half-Hour of Day")
         plt.ylabel("Day of Year")
         plt.tight_layout()
+
+        if save:
+            filename = f"heatmap_{tech}_grid_{grid_id}.png"
+            _save_current_figure(filename, subfolder=subfolder)
+
         plt.show()
 
 
-def plot_total_daily_demand(scaled_profiles_dict, grid_id=None):
+
+def plot_total_daily_demand(
+    scaled_profiles_dict,
+    grid_id=None,
+    *,
+    save: bool = False,
+    subfolder: str = "total_daily_demand",
+    filename: str | None = None,
+):
+
     """
     Plots total daily heat demand (summed across all technologies),
     either for all grid squares combined or for a specific grid square.
@@ -80,16 +129,30 @@ def plot_total_daily_demand(scaled_profiles_dict, grid_id=None):
     total_demand = combined_df.sum(axis=1)  # sum across all techs
     daily_total = total_demand.values.reshape(-1, 48).sum(axis=1)  # sum across 48 slots per day
 
-    plt.figure(figsize=(12, 4))
-    plt.plot(range(1, 366), daily_total)
-    plt.xlabel("Day of Year")
-    plt.ylabel("Total Heat Demand (kWh)")
     plt.title(f"Total Daily Heat Demand – {title_prefix}")
     plt.grid(True)
     plt.tight_layout()
+
+    if save:
+        if filename is None:
+            if grid_id:
+                filename = f"total_daily_grid_{grid_id}.png"
+            else:
+                filename = "total_daily_all_grids.png"
+        _save_current_figure(filename, subfolder=subfolder)
+
     plt.show()
 
-def plot_week_of_heat_profiles(folder_path, start_date="2050-07-04", days=7, num_grids=3):
+
+def plot_week_of_heat_profiles(
+    folder_path,
+    start_date="2050-07-04",
+    days=7,
+    num_grids=3,
+    *,
+    save: bool = False,
+    subfolder: str = "weekly_profiles",
+):
     """
     Plots a week of half-hourly heat demand profiles for a selection of grid squares.
 
@@ -128,14 +191,36 @@ def plot_week_of_heat_profiles(folder_path, start_date="2050-07-04", days=7, num
     # Plot each grid
     for grid_id, df in example_profiles.items():
         sample = df.loc[start:end]
-        sample.plot(figsize=(14, 6), title=f"Half-Hourly Heat Demand – Grid {grid_id} ({start.date()} to {end.date()})")
+        sample.plot(
+            figsize=(14, 6),
+            title=(
+                f"Half-Hourly Heat Demand – Grid {grid_id} "
+                f"({start.date()} to {end.date()})"
+            ),
+        )
         plt.ylabel("Heat Demand (kWh)")
         plt.xlabel("Date-Time")
         plt.grid(True)
         plt.tight_layout()
+
+        if save:
+            filename = (
+                f"week_profile_grid_{grid_id}_"
+                f"{start.date()}_{end.date()}.png"
+            )
+            _save_current_figure(filename, subfolder=subfolder)
+
         plt.show()
         
-def plot_boxplot_half_hourly_distribution(scaled_profiles_dict, grid_ids=None):
+def plot_boxplot_half_hourly_distribution(
+    scaled_profiles_dict,
+    grid_ids=None,
+    *,
+    save: bool = False,
+    subfolder: str = "half_hourly_boxplots",
+    filename: str | None = None,
+):
+
     """
     Plots a boxplot showing distribution of half-hourly demand across all days
     for either selected grid IDs or all grids.
@@ -170,7 +255,14 @@ def plot_boxplot_half_hourly_distribution(scaled_profiles_dict, grid_ids=None):
     plt.title(f"Half-Hourly Demand Distribution — {title_prefix}")
     plt.tight_layout()
     plt.grid(True)
-    plt.show()       
+
+    if save:
+        if filename is None:
+            filename = f"boxplot_{title_prefix.replace(' ', '_')}.png"
+        _save_current_figure(filename, subfolder=subfolder)
+
+    plt.show()
+       
 
 def plot_boxplot_half_hourly_distribution(scaled_profiles_dict, grid_ids=None):
     """
@@ -204,7 +296,14 @@ def plot_boxplot_half_hourly_distribution(scaled_profiles_dict, grid_ids=None):
         
 
 
-def plot_selected_grids_daily_demand(scaled_profiles_dict, grid_ids):
+def plot_selected_grids_daily_demand(
+    scaled_profiles_dict,
+    grid_ids=None,
+    *,
+    save: bool = False,
+    subfolder: str = "half_hourly_boxplots",
+    filename: str | None = None,
+):
     """
     Plots total daily heat demand for specified grid IDs.
 
@@ -241,9 +340,14 @@ def plot_selected_grids_daily_demand(scaled_profiles_dict, grid_ids):
     plt.xlabel("Date")
     plt.ylabel("Total Daily Heat Demand (kWh)")
     plt.title(f"Daily Heat Demand for Selected Grids: {', '.join(grid_df.columns)}")
-    plt.legend()
-    plt.grid(True)
     plt.tight_layout()
+    plt.grid(True)
+
+    if save:
+        if filename is None:
+            filename = f"boxplot_{title_prefix.replace(' ', '_')}.png"
+        _save_current_figure(filename, subfolder=subfolder)
+
     plt.show()
 
     return grid_df  # Return the daily demand data for reuse

@@ -71,7 +71,7 @@ def scaling_half_hourly_profiles_grid_sqs(
     """
 
     # --- 1. Clean and reindex just like old version ---
-    total_dwellings = total_dwellings.copy()
+    # total_dwellings = total_dwellings.copy()
     total_dwellings["Grid_ID"] = total_dwellings["Grid_ID"].astype(str).str.strip()
     total_dwellings.set_index("Grid_ID", inplace=True)
 
