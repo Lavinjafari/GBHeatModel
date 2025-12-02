@@ -87,8 +87,7 @@ def run_heat_demand_pipeline(
 
     la_shapefile = gpd.read_file(la_path)
     grid_squares = gpd.read_file(grids_path)
-    print(f"[TIMER] Step 1 (read shapefiles) took {time.time() - t_prev:.1f} s")
-    t_prev = time.time()
+    
 
     # 2. LA–grid overlaps
     LA_overlaps = calc_LA_overlap_within_grid_square(
@@ -96,8 +95,7 @@ def run_heat_demand_pipeline(
         LA_shapefile=la_shapefile,
         weather_year=weather_year,
     )
-    print(f"[TIMER] Step 2 (LA overlaps) took {time.time() - t_prev:.1f} s")
-    t_prev = time.time()
+
 
     # 3. Merge FES + shapefile + overlaps at LA level
     # IMPORTANT: positional arguments only – no FES_year keyword!
@@ -109,22 +107,19 @@ def run_heat_demand_pipeline(
         scenario,
         weather_year,
     )
-    print(f"[TIMER] Step 3 (merge FES/shapefile) took {time.time() - t_prev:.1f} s")
-    t_prev = time.time()
+   
 
     # 4. Distribute heating technologies to grid squares
     total_dwellings = heat_tech_distribution.distribute_all_heating_techs_to_grids(
         df_merged
     )
-    print(f"[TIMER] Step 4 (distribute techs) took {time.time() - t_prev:.1f} s")
-    t_prev = time.time()
+    
 
     # 5. Aggregate demand per grid square & tech using total_dwellings directly
     grid_square_hd = calculate_heat_demand_for_grid_squares(
         total_dwellings=total_dwellings,
     )
-    print(f"[TIMER] Step 5 (grid_square_hd) took {time.time() - t_prev:.1f} s")
-    t_prev = time.time()
+   
 
     # 6. Generate half-hourly profiles per grid square using precomputed patterns
     pattern_profile_path = path_in_data(
@@ -141,10 +136,7 @@ def run_heat_demand_pipeline(
         FES_scenario=scenario,
         output_dir=None,
     )
-    print(f"[TIMER] Step 6 (half-hourly profiles) took {time.time() - t_prev:.1f} s")
-
-    print(f"[TIMER] TOTAL pipeline time: {time.time() - t0:.1f} s")
-
+    
     return {
         "LA_overlaps": LA_overlaps,
         "df_merged": df_merged,

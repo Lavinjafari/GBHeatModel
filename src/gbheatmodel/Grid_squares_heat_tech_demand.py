@@ -68,9 +68,9 @@ def calculate_heat_demand_for_grid_squares(
     grid_square_hd = grid_square_hd[ordered_meta_cols + ordered_tech_cols]
 
     # 4. Save to CSV (same behaviour as before)
-    out_path = path_in_data("outputs", "heat_techs_distribution_grid_square.csv")
-    ensure_dir(out_path.parent)
-    grid_square_hd.to_csv(out_path, index=False)
+    # out_path = path_in_data("outputs", "heat_techs_distribution_grid_square.csv")
+    # ensure_dir(out_path.parent)
+    # grid_square_hd.to_csv(out_path, index=False)
 
     return grid_square_hd
 

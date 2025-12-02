@@ -93,13 +93,13 @@ def merge_shapefile_FES_heating_tech_file(
     )
     df_merged.set_index("Grid_ID", inplace=True)
 
-    # Save merged result
-    out_path = path_in_data(
-        "Outputs",
-        "merged_FES_heat_tech.csv",
-    )
-    ensure_dir(out_path.parent)
-    df_merged.to_csv(out_path, index=False)
+    # # Save merged result
+    # out_path = path_in_data(
+    #     "Outputs",
+    #     "merged_FES_heat_tech.csv",
+    # )
+    # ensure_dir(out_path.parent)
+    # df_merged.to_csv(out_path, index=False)
 
     return df_merged
 
