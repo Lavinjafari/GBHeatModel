@@ -92,15 +92,15 @@ def scaling_half_hourly_profiles_grid_sqs(
     """
 
     # 1. Ensure consistent string index for Grid_ID
-    total_dwellings = total_dwellings.copy()
+    # total_dwellings = total_dwellings.copy()
     total_dwellings["Grid_ID"] = total_dwellings["Grid_ID"].astype(str).str.strip()
     total_dwellings.set_index("Grid_ID", inplace=True)
 
     # 2. Load grid IDs from air temperature data
-    # air_temp_path = path_in_data("air_temp", f"air_temp_{weather_year}.csv")
-    # air_temp_df = pd.read_csv(air_temp_path, index_col=0)
-    # grid_sqs = [str(gid).strip() for gid in air_temp_df.columns]
-    grid_sqs = list(total_dwellings.index)
+    air_temp_path = path_in_data("air_temp", f"air_temp_{weather_year}.csv")
+    air_temp_df = pd.read_csv(air_temp_path, index_col=0)
+    grid_sqs = [str(gid).strip() for gid in air_temp_df.columns]
+    # grid_sqs = list(total_dwellings.index)
 
     # 3. Get scaling factor and base pattern
     FES_scaling = float(
@@ -128,6 +128,8 @@ def scaling_half_hourly_profiles_grid_sqs(
     # 5. Try to load pre-existing profiles for all grids
     existing_profiles_dict: Dict[str, pd.DataFrame] = {}
     all_exist = True
+    
+    scaled_profiles_dict = {}
 
     for grid_id in grid_sqs:
         file_name = (
@@ -147,11 +149,7 @@ def scaling_half_hourly_profiles_grid_sqs(
     if all_exist:
         print("✅ All heating profiles already exist. Loading from disk.")
         return existing_profiles_dict
-
-    # 6. Compute scaled profiles for each grid using precomputed patterns
-    pattern_profile_path = os.fspath(pattern_profile_path)
-    scaled_profiles_dict: Dict[str, pd.DataFrame] = {}
-
+    # 6. Scale and save profiles per grid square
     for grid_id in grid_sqs:
         if grid_id not in total_dwellings.index:
             print(f"⚠️ Skipping {grid_id} — no dwelling data.")
@@ -176,15 +174,10 @@ def scaling_half_hourly_profiles_grid_sqs(
 
         data = {
             tech: (
-                pattern_profile["daytime"].values
-                * float(base_pattern.loc[tech, "daytime"])
-                + pattern_profile["bi-modal"].values
-                * float(base_pattern.loc[tech, "bi-modal"])
-                + pattern_profile["continuous"].values
-                * float(base_pattern.loc[tech, "continuous"])
-            )
-            * float(tech_dwellings.get(tech, 0.0))
-            * FES_scaling
+                pattern_profile['daytime'].values * float(base_pattern.loc[tech, 'daytime']) +
+                pattern_profile['bi-modal'].values * float(base_pattern.loc[tech, 'bi-modal']) +
+                pattern_profile['continuous'].values * float(base_pattern.loc[tech, 'continuous'])
+            ) * float(tech_dwellings.get(tech, 0)) * FES_scaling
             for tech in base_pattern.index
         }
 
