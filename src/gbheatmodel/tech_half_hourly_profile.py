@@ -56,53 +56,31 @@ def base_heat_pattern_per_technology() -> pd.DataFrame:
 
 def scaling_half_hourly_profiles_grid_sqs(
     pattern_profile_path,
-    total_dwellings: pd.DataFrame,
-    weather_year: int,
-    future_year: int,
-    FES_year: str,
-    FES_scenario: str,
-    output_dir: Optional[str] = None,
-) -> Dict[str, pd.DataFrame]:
+    total_dwellings,
+    weather_year,
+    future_year,
+    FES_year,
+    FES_scenario,
+    output_dir=None
+):
     """
+    FAST VERSION — identical to old behaviour, only paths updated.
     Scales half-hourly heating profiles by grid square based on:
     - Technology distribution (dwellings per grid per tech)
     - FES scenario scaling factor
-
-    Parameters
-    ----------
-    pattern_profile_path : str or Path
-        Directory path to heat-demand pattern CSVs for the given weather_year.
-    total_dwellings : DataFrame
-        DataFrame with a 'Grid_ID' column and technology columns.
-    weather_year : int
-        Year for temperature and pattern profiles (e.g. 2012).
-    future_year : int
-        Year for projecting future profiles (e.g. 2030).
-    FES_year : str
-        FES dataset version (e.g. "2022").
-    FES_scenario : str
-        Scenario name (e.g. "CT", "LW").
-    output_dir : str, optional
-        Directory to save outputs. Auto-generated if not given.
-
-    Returns
-    -------
-    Dict[str, DataFrame]
-        Dictionary mapping grid_id to scaled profile (17520 x N_technologies).
     """
 
-    # 1. Ensure consistent string index for Grid_ID
-    # total_dwellings = total_dwellings.copy()
+    # --- 1. Clean and reindex just like old version ---
+    total_dwellings = total_dwellings.copy()
     total_dwellings["Grid_ID"] = total_dwellings["Grid_ID"].astype(str).str.strip()
     total_dwellings.set_index("Grid_ID", inplace=True)
 
-    # 2. Load grid IDs from air temperature data
+    # --- 2. Load grid IDs from air temperature file (exact old logic) ---
     air_temp_path = path_in_data("air_temp", f"air_temp_{weather_year}.csv")
     air_temp_df = pd.read_csv(air_temp_path, index_col=0)
     grid_sqs = [str(gid).strip() for gid in air_temp_df.columns]
-    # grid_sqs = list(total_dwellings.index)
 
-    # 3. Get scaling factor and base pattern
+    # --- 3. Get FES scaling + base pattern ---
     FES_scaling = float(
         FES_scaling_factor.FES_scaling_factor_calc(
             future_year,
@@ -112,24 +90,23 @@ def scaling_half_hourly_profiles_grid_sqs(
     )
     base_pattern = base_heat_pattern_per_technology()
 
-    # 4. Default output directory inside project
+    # --- 4. Output directory (updated to use path_in_data) ---
     if output_dir is None:
         output_dir = path_in_data(
             "outputs",
             "heating_profiles",
-            f"{weather_year}_{FES_year}_{FES_scenario}_{future_year}",
+            f"{weather_year}_{FES_year}_{FES_scenario}_{future_year}"
         )
     else:
         output_dir = os.fspath(output_dir)
 
+    # Make sure output folders exist
     ensure_dir(path_in_data("outputs"))
     os.makedirs(output_dir, exist_ok=True)
 
-    # 5. Try to load pre-existing profiles for all grids
-    existing_profiles_dict: Dict[str, pd.DataFrame] = {}
+    # --- 5. Try early load of all existing profiles (same as old logic) ---
+    existing_profiles_dict = {}
     all_exist = True
-    
-    scaled_profiles_dict = {}
 
     for grid_id in grid_sqs:
         file_name = (
@@ -144,20 +121,22 @@ def scaling_half_hourly_profiles_grid_sqs(
             existing_profiles_dict[grid_id] = df
         else:
             all_exist = False
-            break
+            break  # exact old behaviour
 
     if all_exist:
         print("✅ All heating profiles already exist. Loading from disk.")
         return existing_profiles_dict
-    # 6. Scale and save profiles per grid square
+
+    # --- 6. Main scaling loop (unchanged from old version, FAST) ---
+    scaled_profiles_dict = {}
+
     for grid_id in grid_sqs:
+
         if grid_id not in total_dwellings.index:
             print(f"⚠️ Skipping {grid_id} — no dwelling data.")
             continue
 
-        pattern_file = os.path.join(
-            pattern_profile_path, f"({grid_id})_{weather_year}.csv"
-        )
+        pattern_file = os.path.join(pattern_profile_path, f"({grid_id})_{weather_year}.csv")
         if not os.path.exists(pattern_file):
             print(f"⚠️ Skipping {grid_id} — pattern file missing.")
             continue
@@ -174,9 +153,9 @@ def scaling_half_hourly_profiles_grid_sqs(
 
         data = {
             tech: (
-                pattern_profile['daytime'].values * float(base_pattern.loc[tech, 'daytime']) +
-                pattern_profile['bi-modal'].values * float(base_pattern.loc[tech, 'bi-modal']) +
-                pattern_profile['continuous'].values * float(base_pattern.loc[tech, 'continuous'])
+                pattern_profile["daytime"].values * float(base_pattern.loc[tech, "daytime"])
+                + pattern_profile["bi-modal"].values * float(base_pattern.loc[tech, "bi-modal"])
+                + pattern_profile["continuous"].values * float(base_pattern.loc[tech, "continuous"])
             ) * float(tech_dwellings.get(tech, 0)) * FES_scaling
             for tech in base_pattern.index
         }
@@ -189,7 +168,7 @@ def scaling_half_hourly_profiles_grid_sqs(
         output_path = os.path.join(
             output_dir,
             f"half_hourly_heat_profile_{grid_id}_{weather_year}_"
-            f"{FES_year}_{FES_scenario}_{future_year}.csv",
+            f"{FES_year}_{FES_scenario}_{future_year}.csv"
         )
         scaled_profile.to_csv(output_path)
         print(f"✅ Saved: {output_path}")
@@ -197,7 +176,6 @@ def scaling_half_hourly_profiles_grid_sqs(
         scaled_profiles_dict[grid_id] = scaled_profile
 
     return scaled_profiles_dict
-
 
 if __name__ == "__main__":
     weather_year = 2010
