@@ -70,15 +70,25 @@ def scaling_half_hourly_profiles_grid_sqs(
     - FES scenario scaling factor
     """
 
-    # --- 1. Clean and reindex just like old version ---
-    # total_dwellings = total_dwellings.copy()
+    # --- 1. Clean and reindex  ---
+    # # total_dwellings = total_dwellings.copy()
+    # total_dwellings["Grid_ID"] = total_dwellings["Grid_ID"].astype(str).str.strip()
+    # total_dwellings.set_index("Grid_ID", inplace=True)
+
+    # # --- 2. Load grid IDs from air temperature file 
+    # air_temp_path = path_in_data("air_temp", f"air_temp_{weather_year}.csv")
+    # air_temp_df = pd.read_csv(air_temp_path, index_col=0)
+    # grid_sqs = [str(gid).strip() for gid in air_temp_df.columns]
+    # 1. Ensure consistent string index for Grid_ID
+    total_dwellings = total_dwellings.copy()
     total_dwellings["Grid_ID"] = total_dwellings["Grid_ID"].astype(str).str.strip()
     total_dwellings.set_index("Grid_ID", inplace=True)
 
-    # --- 2. Load grid IDs from air temperature file (exact old logic) ---
-    air_temp_path = path_in_data("air_temp", f"air_temp_{weather_year}.csv")
-    air_temp_df = pd.read_csv(air_temp_path, index_col=0)
-    grid_sqs = [str(gid).strip() for gid in air_temp_df.columns]
+    # 2. Use unique grid IDs from total_dwellings (always 739)
+    grid_sqs = total_dwellings.index.unique().tolist()
+    # Optional debug:
+    # print(f"[DEBUG] Using {len(grid_sqs)} grid squares from total_dwellings")
+
 
     # --- 3. Get FES scaling + base pattern ---
     FES_scaling = float(
@@ -104,7 +114,7 @@ def scaling_half_hourly_profiles_grid_sqs(
     ensure_dir(path_in_data("outputs"))
     os.makedirs(output_dir, exist_ok=True)
 
-    # --- 5. Try early load of all existing profiles (same as old logic) ---
+    # --- 5. Try early load of all existing profiles ---
     existing_profiles_dict = {}
     all_exist = True
 
@@ -121,13 +131,13 @@ def scaling_half_hourly_profiles_grid_sqs(
             existing_profiles_dict[grid_id] = df
         else:
             all_exist = False
-            break  # exact old behaviour
+            break 
 
     if all_exist:
         print("✅ All heating profiles already exist. Loading from disk.")
         return existing_profiles_dict
 
-    # --- 6. Main scaling loop (unchanged from old version, FAST) ---
+    # --- 6. Main scaling loo ---
     scaled_profiles_dict = {}
 
     for grid_id in grid_sqs:
