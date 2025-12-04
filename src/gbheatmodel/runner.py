@@ -10,7 +10,9 @@ from .path import path_in_data
 from .LA_overlaps_within_grid_squares import calc_LA_overlap_within_grid_square
 from . import heat_tech_distribution
 from .tech_half_hourly_profile import scaling_half_hourly_profiles_grid_sqs
-from .Grid_squares_heat_tech_demand import calculate_heat_demand_for_grid_squares
+from . import Grid_squares_heat_tech_demand
+
+# from .FES_scaling_factor import FES_scaling_factor_calc
 import time
 
 
@@ -54,45 +56,43 @@ def run_heat_demand_pipeline(
           "profiles": dict[grid_id -> DataFrame]
         }
     """
-    t0 = time.time()
-    t_prev = t0
 
-    # ---- Fast-path: if profiles already exist, optionally skip the whole pipeline ----
-    output_dir = profiles_output_dir(weather_year, future_year, FES_year, scenario)
+    # # ---- Fast-path: if profiles already exist, optionally skip the whole pipeline ----
+    # output_dir = profiles_output_dir(weather_year, future_year, FES_year, scenario)
 
-    if skip_if_profiles_exist and os.path.isdir(output_dir):
-        print(
-            "✅ Heating profiles already exist for this run "
-            f"({weather_year}, {FES_year}, {scenario}, {future_year}). "
-            "Skipping pipeline."
-        )
-        # We don't compute anything, just return minimal info
-        return {
-            "LA_overlaps": None,
-            "df_merged": None,
-            "total_dwellings": None,
-            "grid_square_hd": None,
-            "profiles": None,
-            "profiles_dir": output_dir,
-        }
+    # if skip_if_profiles_exist and os.path.isdir(output_dir):
+    #     print(
+    #         "✅ Heating profiles already exist for this run "
+    #         f"({weather_year}, {FES_year}, {scenario}, {future_year}). "
+    #         "Skipping pipeline."
+    #     )
+    #     # We don't compute anything, just return minimal info
+    #     return {
+    #         "LA_overlaps": None,
+    #         "df_merged": None,
+    #         "total_dwellings": None,
+    #         "grid_square_hd": None,
+    #         "profiles": None,
+    #         "profiles_dir": output_dir,
+    #     }
     
 
-
+ 
     # 1. Geometry: LAs & grid squares
-    la_path = path_in_data(
+    LA_path = path_in_data(
         "LAs_shapefile_2021",
         "LAD_DEC_2021_GB_BFC.shp",
     )
     grids_path = path_in_data("UK_Atlite_Grid_sq.gpkg")
 
-    la_shapefile = gpd.read_file(la_path)
+    LA_shapefile = gpd.read_file(LA_path)
     grid_squares = gpd.read_file(grids_path)
     
 
     # 2. LA–grid overlaps
     LA_overlaps = calc_LA_overlap_within_grid_square(
         grid_squares=grid_squares,
-        LA_shapefile=la_shapefile,
+        LA_shapefile=LA_shapefile,
         weather_year=weather_year,
     )
 
@@ -107,21 +107,14 @@ def run_heat_demand_pipeline(
         scenario,
         weather_year,
     )
-   
-
     # 4. Distribute heating technologies to grid squares
-    total_dwellings = heat_tech_distribution.distribute_all_heating_techs_to_grids(
-        df_merged
-    )
-    
+    distributed_df = heat_tech_distribution.distribute_all_heating_techs_to_grids(df_merged)
 
-    # 5. Aggregate demand per grid square & tech using total_dwellings directly
-    grid_square_hd = calculate_heat_demand_for_grid_squares(
-        total_dwellings=total_dwellings,
-    )
-   
+    # 5. Aggregate heating technologies to grid squares
+    total_dwellings = Grid_squares_heat_tech_demand.calculate_heat_demand_for_grid_squares(distributed_df)
 
-    # 6. Generate half-hourly profiles per grid square using precomputed patterns
+
+    # 7. Generate half-hourly profiles per grid square using precomputed patterns
     pattern_profile_path = path_in_data(
         "heat_demand_profiles_patterns",
         f"HD_heat_patterns_{weather_year}",
@@ -140,7 +133,7 @@ def run_heat_demand_pipeline(
     return {
         "LA_overlaps": LA_overlaps,
         "df_merged": df_merged,
+        "distributed_df": distributed_df,
         "total_dwellings": total_dwellings,
-        "grid_square_hd": grid_square_hd,
         "profiles": profiles,
     }

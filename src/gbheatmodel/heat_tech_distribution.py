@@ -73,8 +73,8 @@ def merge_shapefile_FES_heating_tech_file(
     )
     df.index = df.index.str.strip().str.title()
 
-    print("Sample FES LAs:", df.index.tolist()[:10])
-    print("Sample Grid LAs:", LA_overlaps["Local_Authority"].unique()[:10])
+    # print("Sample FES LAs:", df.index.tolist()[:10])
+    # print("Sample Grid LAs:", LA_overlaps["Local_Authority"].unique()[:10])
 
     # Merge overlaps with FES data (many grid cells per LA)
     df_merged = pd.merge(
@@ -137,36 +137,34 @@ def distribute_all_heating_techs_to_grids(
             continue
 
         df_LA = df_LA.reset_index()
-
-        # Normalise overlap_percentage once per LA
+        
         df_LA["normalized_overlap"] = (
-            df_LA["overlap_percentage"] / df_LA["overlap_percentage"].sum()
+        df_LA["overlap_percentage"] / df_LA["overlap_percentage"].sum()
         )
+
+
 
         for tech in list_of_tech:
             tech_total = df_LA[tech].iloc[0]
+            # Normalise overlap_percentage once per LA
+            df_LA["normalized_overlap"] = (
+            df_LA["overlap_percentage"] / df_LA["overlap_percentage"].sum()
+            )
             df_LA[tech] = df_LA["normalized_overlap"] * tech_total
 
-        keep_cols = [
-            "Grid_ID",
-            "Local_Authority",
-            "Year",
-            "Scenario",
-            "Sector",
-            *list_of_tech,
-        ]
+        keep_cols = ['Grid_ID', 'Local_Authority', 'Year', 'Scenario', 'Sector'] + [tech for tech in list_of_tech]
         distributed_heat_tech.append(df_LA[keep_cols])
 
-    df_out = pd.concat(distributed_heat_tech, ignore_index=True)
+    distributed_df = pd.concat(distributed_heat_tech, ignore_index=True)
 
     out_path = path_in_data(
-        "Outputs",
+        "outputs",
         "distributed_heat_tech.csv",
     )
     ensure_dir(out_path.parent)
-    df_out.to_csv(out_path, index=False)
+    distributed_df.to_csv(out_path, index=False)
 
-    return df_out
+    return distributed_df
 
 
 if __name__ == "__main__":

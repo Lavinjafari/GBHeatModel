@@ -52,48 +52,19 @@ def read_FES_heat_supply(FES: str) -> pd.DataFrame:
     return df
 
 
-def year_FES_heat_supply(
-    year: int,
-    FES: str,
-    scenario: Optional[str] = None,
-) -> pd.DataFrame:
-    """
-    Select FES heat supply data for the nearest available year <= target year
-    and (optionally) a given scenario.
+def year_FES_heat_supply(year, FES, scenario=None):
 
-    Parameters
-    ----------
-    year : int
-        Target year (e.g. 2031). The function will map this to the closest
-        available FES year <= `year`.
-    FES : {"2021", "2022"}
-        FES dataset version.
-    scenario : str, optional
-        Scenario name (e.g. "LW", "CT", "ST", "FS").
-        If provided, the DataFrame is filtered to this scenario.
-
-    Returns
-    -------
-    DataFrame
-        FES data for the chosen vintage, mapped year, and scenario.
-    """
-    FES = str(FES)
-
-    if FES == "2021":
+    if FES == '2021':
         year_list = np.array([2020, 2025, 2030, 2035])
-    elif FES == "2022":
+        closest_year = year_list[year_list <= year].max()
+    
+    elif FES == '2022':
         year_list = np.array([2020, 2025, 2030, 2035, 2040, 2045, 2050])
-    else:
-        raise ValueError(f"Unsupported FES vintage: {FES!r}. Expected '2021' or '2022'.")
-
-    # Find the closest available FES year <= requested year
-    closest_year = year_list[year_list <= year].max()
+        closest_year = year_list[year_list <= year].max()
 
     df = read_FES_heat_supply(FES)
-    df = df.loc[df["Year"] == closest_year]
-
-    if scenario is not None:
-        df = df.loc[df["Scenario"] == scenario]
+    df = df.loc[df['Year'] == closest_year]
+    df = df.loc[df['Scenario'] == scenario]
 
     return df
 

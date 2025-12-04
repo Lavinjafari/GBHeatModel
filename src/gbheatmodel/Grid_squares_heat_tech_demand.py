@@ -11,10 +11,10 @@ from . import heat_tech_distribution
 from .path import path_in_data, ensure_dir
 
 def calculate_heat_demand_for_grid_squares(
-    total_dwellings: pd.DataFrame,
+    distributed_df: pd.DataFrame,
 ) -> pd.DataFrame:
     """
-    Aggregate heating technology demand to grid-square level from total_dwellings.
+    Aggregate heating technology demand to grid-square  = total_dwellings.
 
     Parameters
     ----------
@@ -27,11 +27,11 @@ def calculate_heat_demand_for_grid_squares(
     Returns
     -------
     DataFrame
-        Heat demand (or dwellings) per grid square and technology.
+        Heat demand (or total_dwellings) per grid square and technology.
     """
 
     # Work on a copy to avoid modifying the caller's DataFrame
-    df = total_dwellings.copy()
+    df = distributed_df.copy()
 
     # Make sure Grid_ID is a column, not an index
     if "Grid_ID" in df.index.names:
@@ -45,7 +45,7 @@ def calculate_heat_demand_for_grid_squares(
     tech_cols = df.select_dtypes(include="number").columns.difference(meta_cols)
 
     # 1. Aggregate numeric values per grid square
-    grid_square_hd = df.groupby("Grid_ID")[tech_cols].sum().reset_index()
+    total_dwellings = df.groupby("Grid_ID")[tech_cols].sum().reset_index()
 
     # 2. Get one row of metadata per Grid_ID (first occurrence)
     if any(c in df.columns for c in ["Year", "Scenario", "Sector"]):
@@ -55,24 +55,24 @@ def calculate_heat_demand_for_grid_squares(
             .first()
             .reset_index()
         )
-        grid_square_hd = pd.merge(
-            grid_square_hd,
+        total_dwellings = pd.merge(
+            total_dwellings,
             meta,
             on="Grid_ID",
             how="left",
         )
 
     # 3. Reorder columns: metadata first, then techs
-    ordered_meta_cols = [c for c in ["Grid_ID", "Year", "Scenario", "Sector"] if c in grid_square_hd.columns]
-    ordered_tech_cols = [c for c in grid_square_hd.columns if c not in ordered_meta_cols]
-    grid_square_hd = grid_square_hd[ordered_meta_cols + ordered_tech_cols]
+    ordered_meta_cols = [c for c in ["Grid_ID", "Year", "Scenario", "Sector"] if c in total_dwellings.columns]
+    ordered_tech_cols = [c for c in total_dwellings.columns if c not in ordered_meta_cols]
+    total_dwellings = total_dwellings[ordered_meta_cols + ordered_tech_cols]
 
     # 4. Save to CSV (same behaviour as before)
     # out_path = path_in_data("outputs", "heat_techs_distribution_grid_square.csv")
     # ensure_dir(out_path.parent)
     # grid_square_hd.to_csv(out_path, index=False)
 
-    return grid_square_hd
+    return total_dwellings
 
 
 def prepare_site_to_calc_air_temp(grid_square_hd: pd.DataFrame) -> pd.DataFrame:

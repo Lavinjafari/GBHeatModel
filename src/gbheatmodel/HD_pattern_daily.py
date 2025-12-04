@@ -38,35 +38,30 @@ def heat_demand_per_pattern_per_grid_sq_daily(
     air_temp_series = air_temp_daily[grid_id]
     daysinyear = 365
 
-    results: dict[str, dict[str, float]] = {}
+    # Dictionary to collect results
+    results = {}
 
     for day in range(daysinyear):
-        date = pd.Timestamp(f"{weather_year}-01-01") + pd.Timedelta(days=day)
+        date_str = (pd.Timestamp(f"{weather_year}-01-01") + pd.Timedelta(days=day)).strftime("%Y-%m-%d")
         Td = air_temp_series.iloc[day]
 
         # Get pattern-wise daily demand for this grid square and temperature
-        pattern_values = hd_one_day.heat_demand_per_pattern_per_grid_sq_one_day(
-            grid_id,
-            Td,
-            weather_year,
-        )
-        # pattern_values is expected to be like:
-        #   {'daytime': x, 'bi-modal': y, 'continuous': z}
-
-        results[date] = pattern_values
+        pattern_values = hd_one_day.heat_demand_per_pattern_per_grid_sq_one_day(grid_id, Td, weather_year)
+        
+        # pattern_values should be a dictionary like {'daytime': x, 'bi-modal': y, 'continuous': z}
+        results[date_str] = pattern_values
 
     # Convert to DataFrame: rows = date, columns = pattern
-    df = pd.DataFrame.from_dict(results, orient="index")
+    df = pd.DataFrame.from_dict(results, orient='index')
 
-    # Ensure consistent column order
-    df = df[["daytime", "bi-modal", "continuous"]]
+    # Make sure columns are ordered
+    df = df[['daytime', 'bi-modal', 'continuous']]
 
-    # Convert index to datetime and name it
+    # Convert index to datetime
     df.index = pd.to_datetime(df.index)
-    df.index.name = "date"
+    df.index.name = 'date'
 
     return df
-
 
 if __name__ == "__main__":
     weather_year = 2012
