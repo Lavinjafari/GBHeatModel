@@ -104,44 +104,82 @@ def plot_total_daily_demand(
     subfolder: str = "total_daily_demand",
     filename: str | None = None,
 ):
-
     """
     Plots total daily heat demand (summed across all technologies),
     either for all grid squares combined or for a specific grid square.
 
-    Parameters:
-    -----------
+    Parameters
+    ----------
     scaled_profiles_dict : dict
         Dictionary mapping grid_id to DataFrame of half-hourly profiles.
     grid_id : str, optional
         If provided, plots daily demand for this specific grid square only.
+        If None, aggregates all grids (national total).
     """
-    if grid_id:
+
+    # 1. Choose which DataFrame(s) to aggregate
+    if grid_id is not None:
         if grid_id not in scaled_profiles_dict:
             print(f"Grid ID '{grid_id}' not found.")
             return
         combined_df = scaled_profiles_dict[grid_id]
         title_prefix = f"Grid {grid_id}"
     else:
-        combined_df = sum((df for df in scaled_profiles_dict.values()))
+        # Sum all grids; assumes all DataFrames share same index/columns
+        combined_df = sum(df for df in scaled_profiles_dict.values())
         title_prefix = "All Grid Squares"
 
-    total_demand = combined_df.sum(axis=1)  # sum across all techs
-    daily_total = total_demand.values.reshape(-1, 48).sum(axis=1)  # sum across 48 slots per day
+    # If nothing there, bail out
+    if combined_df.empty:
+        print("Combined DataFrame is empty, nothing to plot.")
+        return
 
+    # 2. Sum over technologies -> half-hourly total
+    total_demand = combined_df.sum(axis=1)  # Series, length N
+
+    n = len(total_demand)
+    if n == 0:
+        print("Total demand series is empty, nothing to plot.")
+        return
+
+    if n % 48 != 0:
+        print(f"Length {n} is not divisible by 48; "
+              "cannot reshape into full days. Nothing plotted.")
+        return
+
+    # 3. Aggregate to daily totals (sum over 48 half-hours)
+    daily_total = total_demand.values.reshape(-1, 48).sum(axis=1)
+
+    # 4. Build a day index
+    if isinstance(total_demand.index, pd.DatetimeIndex):
+        day_index = pd.date_range(
+            start=total_demand.index[0].normalize(),
+            periods=len(daily_total),
+            freq="D",
+        )
+    else:
+        day_index = range(len(daily_total))
+
+    # 5. Plot
+    plt.figure(figsize=(12, 5))
+    plt.plot(day_index, daily_total)
     plt.title(f"Total Daily Heat Demand – {title_prefix}")
+    plt.xlabel("Date" if isinstance(day_index, pd.DatetimeIndex) else "Day")
+    plt.ylabel("Total Heat Demand (kWh)")
     plt.grid(True)
     plt.tight_layout()
 
+    # 6. Optional save
     if save:
         if filename is None:
-            if grid_id:
+            if grid_id is not None:
                 filename = f"total_daily_grid_{grid_id}.png"
             else:
                 filename = "total_daily_all_grids.png"
         _save_current_figure(filename, subfolder=subfolder)
 
     plt.show()
+
 
 
 def plot_week_of_heat_profiles(

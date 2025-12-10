@@ -137,3 +137,27 @@ def run_heat_demand_pipeline(
         "total_dwellings": total_dwellings,
         "profiles": profiles,
     }
+    
+def run_heat_profiles_only(
+    weather_year: int,
+    future_year: int,
+    FES_year: str,
+    scenario: str,
+) -> Dict[str, pd.DataFrame]:
+    """
+    Convenience wrapper that runs the full heat demand pipeline
+    and returns only the half-hourly profiles per grid square.
+
+    Returns
+    -------
+    dict
+        Mapping grid_id -> DataFrame (index: timestamp, columns: technologies).
+    """
+    results = run_heat_demand_pipeline(
+        weather_year=weather_year,
+        future_year=future_year,
+        FES_year=FES_year,
+        scenario=scenario,
+        skip_if_profiles_exist=False,
+    )
+    return results["profiles"]

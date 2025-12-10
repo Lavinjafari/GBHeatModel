@@ -14,7 +14,7 @@ def FES_scaling_factor_calc(future_year, FES, scenario):
     which drives down heat demand dramatically.
     """
     
-    file = 'data/FES Spatial Heat Model/' + FES + '/' + 'Annual Heat Demand - FES' + FES[-2:] + '.csv'
+    file = 'data/FES_Spatial_Heat_Model/' + FES + '/' + 'Annual Heat Demand - FES' + FES[-2:] + '.csv'
     if scenario == 'LW':
         scenario = 'Leading the Way'
     elif scenario == 'CT':
