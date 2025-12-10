@@ -4,7 +4,7 @@ from glob import glob
 import os
 import seaborn as sns
 
-from gbheatmodel.path import path_in_data  # NEW
+from gbheatmodel.path import path_in_data  
 
 
 def _save_current_figure(
@@ -74,18 +74,48 @@ def plot_heatmap_one_grid(
     save: bool = False,
     subfolder: str = "grid_heatmaps",
 ):
-    
+    """
+    Plot a heatmap of half-hourly heat demand for one grid,
+    one heatmap per technology.
+
+    Rows  = days of year
+    Cols  = 48 half-hour slots per day
+    Cells = demand (kWh)
+    """
+
     if grid_id not in scaled_profiles_dict:
         print(f"Grid ID '{grid_id}' not found.")
         return
 
     df = scaled_profiles_dict[grid_id]
 
+    if df.empty:
+        print(f"No data for grid {grid_id}.")
+        return
+
     for tech in df.columns:
-        daily_matrix = df[tech].values.reshape(-1, 48)
+        series = df[tech]
+        n = len(series)
+
+        if n % 48 != 0:
+            print(
+                f"Tech '{tech}' in grid {grid_id} has length {n}, "
+                "not divisible by 48 – skipping."
+            )
+            continue
+
+        # reshape to [days, 48 half-hour slots]
+        daily_matrix = series.values.reshape(-1, 48)
+
+        plt.figure(figsize=(10, 6))
+        sns.heatmap(
+            daily_matrix,
+            cmap="YlOrRd",
+            cbar_kws={"label": "Heat Demand (kWh)"},
+        )
         plt.title(f"Heatmap of {tech} Demand – Grid {grid_id}")
-        plt.xlabel("Half-Hour of Day")
-        plt.ylabel("Day of Year")
+        plt.xlabel("Half-Hour of Day (0–47)")
+        plt.ylabel("Day of Year (0–N)")
         plt.tight_layout()
 
         if save:
@@ -97,7 +127,7 @@ def plot_heatmap_one_grid(
 
 
 def plot_total_daily_demand(
-    scaled_profiles_dict,
+    profiles,
     grid_id=None,
     *,
     save: bool = False,
@@ -110,7 +140,7 @@ def plot_total_daily_demand(
 
     Parameters
     ----------
-    scaled_profiles_dict : dict
+    profiles : dict
         Dictionary mapping grid_id to DataFrame of half-hourly profiles.
     grid_id : str, optional
         If provided, plots daily demand for this specific grid square only.
@@ -119,14 +149,14 @@ def plot_total_daily_demand(
 
     # 1. Choose which DataFrame(s) to aggregate
     if grid_id is not None:
-        if grid_id not in scaled_profiles_dict:
+        if grid_id not in profiles:
             print(f"Grid ID '{grid_id}' not found.")
             return
-        combined_df = scaled_profiles_dict[grid_id]
+        combined_df = profiles[grid_id]
         title_prefix = f"Grid {grid_id}"
     else:
         # Sum all grids; assumes all DataFrames share same index/columns
-        combined_df = sum(df for df in scaled_profiles_dict.values())
+        combined_df = sum(df for df in profiles.values())
         title_prefix = "All Grid Squares"
 
     # If nothing there, bail out
@@ -183,72 +213,103 @@ def plot_total_daily_demand(
 
 
 def plot_week_of_heat_profiles(
-    folder_path,
-    start_date="2050-07-04",
-    days=7,
-    num_grids=3,
+    profiles_dict,
+    grid_id,
     *,
-    save: bool = False,
-    subfolder: str = "weekly_profiles",
+    start_date="2050-01-15",
+    days=7,
+    save=False,
+    subfolder="weekly_profiles",
+    filename_grid=None,
+    filename_all=None,
 ):
     """
-    Plots a week of half-hourly heat demand profiles for a selection of grid squares.
+    Plot a week of half-hourly heat demand:
 
-    Parameters:
-    -----------
-    folder_path : str
-        Path to the folder containing scaled profile CSVs.
+      1) For a specific grid_id
+      2) For ALL grids combined (national)
+
+    Parameters
+    ----------
+    profiles_dict : dict
+        {grid_id -> DataFrame of half-hourly profiles (index: datetime, cols: techs)}
+    grid_id : str
+        Grid ID to plot individually.
     start_date : str
-        Start date for the time window to plot (format: YYYY-MM-DD).
+        Start date (YYYY-MM-DD).
     days : int
         Number of days to plot from start_date.
-    num_grids : int
-        Number of grid profiles to load and plot.
     """
-    from datetime import datetime, timedelta
 
-    # Generate date range
-    start = pd.to_datetime(start_date)
-    end = start + pd.Timedelta(days=days)
-
-    # Get CSVs
-    csv_files = glob(os.path.join(folder_path, "*.csv"))
-
-    if not csv_files:
-        print("No CSV files found in the specified folder.")
+    # --- basic checks ---
+    if grid_id not in profiles_dict:
+        print(f"Grid ID '{grid_id}' not found in profiles_dict.")
         return
 
-    # Load and plot
-    example_profiles = {}
-    for file in csv_files[:num_grids]:
-        basename_parts = os.path.basename(file).split("_")
-        grid_id = "_".join(basename_parts[4:-3])  # handles cases like '-0.5_52.0'
-        df = pd.read_csv(file, index_col=0, parse_dates=True)
-        example_profiles[grid_id] = df
+    start = pd.to_datetime(start_date)
+    end   = start + pd.Timedelta(days=days)
 
-    # Plot each grid
-    for grid_id, df in example_profiles.items():
-        sample = df.loc[start:end]
-        sample.plot(
-            figsize=(14, 6),
-            title=(
-                f"Half-Hourly Heat Demand – Grid {grid_id} "
-                f"({start.date()} to {end.date()})"
-            ),
-        )
-        plt.ylabel("Heat Demand (kWh)")
-        plt.xlabel("Date-Time")
-        plt.grid(True)
-        plt.tight_layout()
+    # ========= 1) SPECIFIC GRID =========
+    df_grid = profiles_dict[grid_id]
 
-        if save:
-            filename = (
-                f"week_profile_grid_{grid_id}_"
-                f"{start.date()}_{end.date()}.png"
-            )
-            _save_current_figure(filename, subfolder=subfolder)
+    if not isinstance(df_grid.index, pd.DatetimeIndex):
+        print(f"Grid {grid_id} does not have a DatetimeIndex. Cannot slice by date.")
+    else:
+        week_grid = df_grid.loc[start:end]
 
-        plt.show()
+        if week_grid.empty:
+            print(f"No data for grid {grid_id} between {start} and {end}.")
+        else:
+            # sum over technologies
+            series_grid = week_grid.sum(axis=1)
+
+            plt.figure(figsize=(14, 5))
+            plt.plot(series_grid.index, series_grid.values)
+            plt.title(f"Half-Hourly Heat Demand – Grid {grid_id}\n({start.date()} to {end.date()})")
+            plt.xlabel("Date-Time")
+            plt.ylabel("Heat Demand (kWh)")
+            plt.grid(True)
+            plt.tight_layout()
+
+            if save:
+                if filename_grid is None:
+                    filename_grid = f"week_grid_{grid_id}_{start.date()}_{end.date()}.png"
+                _save_current_figure(filename_grid, subfolder=subfolder)
+
+            plt.show()
+
+    # ========= 2) ALL GRIDS (NATIONAL) =========
+    # sum all grids → combined_df: same index, tech columns
+    combined_df = sum(df for df in profiles_dict.values())
+
+    if not isinstance(combined_df.index, pd.DatetimeIndex):
+        print("Combined DataFrame index is not DatetimeIndex. Cannot slice by date.")
+        return
+
+    week_all = combined_df.loc[start:end]
+
+    if week_all.empty:
+        print(f"No data for ALL grids between {start} and {end}.")
+        return
+
+    series_all = week_all.sum(axis=1)  # sum over techs
+
+    plt.figure(figsize=(14, 5))
+    plt.plot(series_all.index, series_all.values)
+    plt.title(f"Half-Hourly Heat Demand – ALL Grids\n({start.date()} to {end.date()})")
+    plt.xlabel("Date-Time")
+    plt.ylabel("Heat Demand (kWh)")
+    plt.grid(True)
+    plt.tight_layout()
+
+    if save:
+        if filename_all is None:
+            filename_all = f"week_all_grids_{start.date()}_{end.date()}.png"
+        _save_current_figure(filename_all, subfolder=subfolder)
+
+    plt.show()
+
+
         
 def plot_boxplot_half_hourly_distribution(
     scaled_profiles_dict,
@@ -404,3 +465,70 @@ def plot_tech_heatmaps(scaled_profiles_dict):
         plt.ylabel("Day of Year")
         plt.tight_layout()
         plt.show()
+
+def plot_area_full_year(profiles, grid_id=None):
+    """
+    Stacked area plot of half-hourly heat demand across the full year.
+    If grid_id=None: sum all grids (national).
+    Otherwise: plot that grid only.
+    """
+
+    # --- Select grid or all grids ---
+    if grid_id is None:
+        df = sum(df for df in profiles.values())
+        title = "National Half-Hourly Heat Demand (Stacked Area)"
+    else:
+        df = profiles[grid_id]
+        title = f"Half-Hourly Heat Demand – Grid {grid_id}"
+
+    if df.empty:
+        print("DataFrame is empty, cannot plot.")
+        return
+
+    plt.style.use("ggplot")
+    df.plot.area(figsize=(20, 8), cmap="tab20", stacked=True)
+    plt.title(title)
+    plt.xlabel("Date-Time")
+    plt.ylabel("Heat Demand (kWh)")
+    plt.tight_layout()
+    plt.show()
+
+def plot_area_one_week(
+    profiles,
+    grid_id=None,
+    start_date="2050-01-01",
+    days=7,
+):
+    """
+    Stacked area plot of half-hourly heat demand for a selected week.
+    If grid_id=None: plot national.
+    """
+
+    start = pd.to_datetime(start_date)
+    end = start + pd.Timedelta(days=days)
+
+    # --- Select grid or all grids ---
+    if grid_id is None:
+        df = sum(df for df in profiles.values())
+        label = "National"
+    else:
+        df = profiles[grid_id]
+        label = f"Grid {grid_id}"
+
+    if not isinstance(df.index, pd.DatetimeIndex):
+        print("Index must be DatetimeIndex to slice by week.")
+        return
+
+    week_df = df.loc[start:end]
+
+    if week_df.empty:
+        print("No data available for this week/time period.")
+        return
+
+    plt.style.use("ggplot")
+    week_df.plot.area(figsize=(20, 8), cmap="tab20", stacked=True)
+    plt.title(f"Weekly Heat Demand – {label}\n{start.date()} to {end.date()}")
+    plt.xlabel("Date-Time")
+    plt.ylabel("Heat Demand (kWh)")
+    plt.tight_layout()
+    plt.show()
