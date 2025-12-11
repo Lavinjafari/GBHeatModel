@@ -3,6 +3,7 @@ import numpy as np
 import os
 from datetime import datetime, timedelta
 from calendar import isleap
+from .path import path_in_data, ensure_dir
 
 def average_day_cop_for_heat_pump(heat_pump_type, performance_level, Td):
     """
@@ -34,29 +35,69 @@ def average_day_cop_for_heat_pump(heat_pump_type, performance_level, Td):
 
 
 def day_cop_for_year_grid_sq(heat_pump_type, performance_level, future_year, weather_year):
-    # Read air temperature data
-    air_temp_daily = pd.read_csv(f'data/LA_UK/new_version/air_temp_new/average_day_air_temp_{weather_year}.csv', index_col=0)
+    """
+    Create a half-hourly COP profile (one year) for each grid square, based on
+    average daily air temperature per grid square.
 
-    # Convert to datetime index for safety
-    air_temp_daily.index = pd.date_range(start=f"{weather_year}-01-01", periods=len(air_temp_daily), freq='D')
+    Output:
+        CSV at: data/outputs/COP_Profiles/<heat_pump_type>_<performance_level>_<weather_year>_<future_year>.csv
+    """
 
-    # Drop Feb 29 if future year is NOT leap
+    # --- 1. Input: daily average air temperatures for the weather year ---
+    avg_air_temp_path = path_in_data(
+        "air_temp",
+        f"average_day_air_temp_{weather_year}.csv",
+    )
+    air_temp_daily = pd.read_csv(avg_air_temp_path, index_col=0)
+
+    # Make sure the index is a proper daily DatetimeIndex
+    air_temp_daily.index = pd.date_range(
+        start=f"{weather_year}-01-01",
+        periods=len(air_temp_daily),
+        freq="D",
+    )
+
+    # If future year is NOT leap, drop 29 Feb from the weather-year series (if present)
     if not isleap(future_year):
-        air_temp_daily = air_temp_daily[~((air_temp_daily.index.month == 2) & (air_temp_daily.index.day == 29))]
+        air_temp_daily = air_temp_daily[
+            ~((air_temp_daily.index.month == 2) & (air_temp_daily.index.day == 29))
+        ]
 
+    # Number of days we are actually using
+    n_days = len(air_temp_daily)
+
+    # --- 2. Prepare output path / directory ---
+    out_dir = path_in_data("outputs", "COP_Profiles")
+    ensure_dir(out_dir)
+
+    out_path = os.path.join(
+        out_dir,
+        f"{heat_pump_type}_{performance_level}_{weather_year}_{future_year}.csv",
+    )
+
+    # --- 3. Build half-hourly COP profiles for each grid square ---
     grid_id_list = air_temp_daily.columns
     list_of_cops = []
 
-    # Define the correct datetime index for half-hourly steps
-    full_index = pd.date_range(start=f"{future_year}-01-01", periods=365 * 48, freq="30min")
+    # Half-hourly index for the future year (using n_days from air_temp_daily)
+    full_index = pd.date_range(
+        start=f"{future_year}-01-01",
+        periods=n_days * 48,
+        freq="30min",
+    )
 
     for grid_id in grid_id_list:
         data = []
 
-        for day in range(365):  # Non-leap year
+        for day in range(n_days):
             date = datetime(future_year, 1, 1) + timedelta(days=day)
             temp = air_temp_daily[grid_id].iloc[day]
-            cop = average_day_cop_for_heat_pump(heat_pump_type, performance_level, temp)
+
+            cop = average_day_cop_for_heat_pump(
+                heat_pump_type,
+                performance_level,
+                temp,
+            )
 
             # Repeat the daily COP value 48 times for 48 half-hours
             data.extend([cop] * 48)
@@ -66,61 +107,10 @@ def day_cop_for_year_grid_sq(heat_pump_type, performance_level, future_year, wea
 
     df_cops = pd.concat(list_of_cops, axis=1)
 
-    # Save to file
-    output_dir = 'data/LA_UK/new_version/outputs/COP_Profiles'
-    os.makedirs(output_dir, exist_ok=True)
-    file_name = f"{heat_pump_type}_{performance_level}_{weather_year}_{future_year}.csv"
-    file_path = os.path.join(output_dir, file_name)
-    df_cops.to_csv(file_path)
+    # --- 4. Save to file ---
+    df_cops.to_csv(out_path)
 
     return df_cops
-
-# def day_cop_for_year_grid_sq(heat_pump_type, performance_level, future_year, weather_year):
-
-#     # try to read file first
-#     # try:
-#     #     df_cops = pd.read_csv('data/cop_profiles/' + heat_pump_type + '_' + performance_level + '_' + str(weather_year) + '_' + str(future_year) + '.csv', index_col=0)
-#     # except:
-#     # read in daily temps
-#     air_temp_daily = pd.read_csv('data/LA_UK/new_version/air_temp_new/average_day_air_temp_' + str(weather_year) + '.csv', index_col=0)
-
-#     grid_id_list = air_temp_daily.columns
-#     # print(LA_list)
-
-#     list_of_cops = []
-#     for grid_id in grid_id_list:
-#         # calculate the average COP over a day
-#         daysinyear = 365 #+ calendar.isleap(future_year)
-#         data = {}
-#         for day in range(1, daysinyear):
-#             date_time = str(day) + '-' + str(future_year)
-#             data[date_time] = average_day_cop_for_heat_pump(heat_pump_type, performance_level, air_temp_daily[grid_id].iloc[day])
-#         df = pd.DataFrame(data, index=[grid_id]).T
-#         time_added = str(1) + '-' + str(future_year + 1)
-#         df.loc[time_added] = 0
-#         # random non-leap year used. but year is modified later.
-#         start = str(2021) + '-01-01'
-#         end = str(2021) + '-12-31 23:30:00'
-#         datetime_index = pd.date_range(start=start, end=end, freq='D')
-#         df.index = datetime_index
-#         # df.index = pd.to_datetime(df.index, format="%j-%Y")
-#         df = df.resample('0.5h').ffill()
-#         df = df[:-1]
-#         df.index = df.index.map(lambda dt: dt.replace(year=future_year))
-#         # df.index = df.index + pd.DateOffset(year=future_year)
-
-#         list_of_cops.append(df)
-    
-#     df_cops = pd.concat(list_of_cops, axis=1)
-#     output_dir = 'data/LA_UK/new_version/outputs/COP_Profiles'
-#     os.makedirs(output_dir, exist_ok=True)
-
-#     file_name = f"{heat_pump_type}_{performance_level}_{weather_year}_{future_year}.csv"
-#     file_path = os.path.join(output_dir, file_name)
-
-#     df_cops.to_csv(file_path)
-
-#     return df_cops
 
 if __name__ == '__main__':
     df = day_cop_for_year_grid_sq('ASHP', 'very good', future_year=2050, weather_year=2012)
