@@ -14,6 +14,8 @@ from . import Grid_squares_heat_tech_demand
 from . import cop
 from .electric_demand import electric_demand_for_heat
 import time
+from.scenario_alignment import scale_FES_dwellings, assign_tech_shares
+
 
 
 def profiles_output_dir(
@@ -251,3 +253,69 @@ def run_electric_demand(
             df.to_csv(file_path)
 
     return ed_grid_sqs
+
+def run_scenario_alignment_grid_square_distribution(
+    total_dwelling_new,
+    type_of_techs,
+    share_of_techs,
+    input_path=(
+        "Scenario_Alignment",
+        "heat_techs_distribution_grid_square.csv",
+    ),
+    output_subdir=(
+        "outputs",
+        "Scenario_Alignment_Outputs",
+    ),
+):
+    """
+    Loads the grid-square FES distribution, scales dwellings, assigns tech shares,
+    and writes outputs using path_in_data.
+
+    Parameters
+    ----------
+    total_dwelling_new : float
+        Total dwellings for the new scenario (e.g. 25.8e6).
+    type_of_techs : list[str]
+        Technology names to allocate (e.g. ["ASHP", "GSHP"]).
+    share_of_techs : list[float]
+        Shares for each technology (must sum to 1.0).
+    input_path : tuple[str, ...]
+        Relative path under data/ to the input CSV.
+    output_subdir : tuple[str, ...]
+        Relative path under data/ for outputs.
+
+    Returns
+    -------
+    dict
+        {
+          "scaled_total_dwellings": DataFrame,
+          "tech_distribution": DataFrame,
+          "paths": {"scaled": str, "tech_distribution": str},
+        }
+    """
+    # --- Load input ---
+    in_path = path_in_data(*input_path)
+    FES_data = pd.read_csv(in_path)
+
+    # --- Core computations ---
+    scaled = scale_FES_dwellings(FES_data, total_dwelling_new)
+    tech_distribution = assign_tech_shares(scaled, type_of_techs, share_of_techs)
+
+    # --- Save outputs ---
+    out_dir = path_in_data(*output_subdir)
+    ensure_dir(out_dir)
+
+    scaled_path = os.path.join(out_dir, "heat_techs_distribution_grid_square_scaled.csv")
+    tech_path = os.path.join(out_dir, "hd_distribution_new_scenario.csv")
+
+    scaled.to_csv(scaled_path, index=False)
+    tech_distribution.to_csv(tech_path, index=False)
+
+    return {
+        "scaled_total_dwellings": scaled,
+        "tech_distribution": tech_distribution,
+        "paths": {
+            "scaled": scaled_path,
+            "tech_distribution": tech_path,
+        },
+    }

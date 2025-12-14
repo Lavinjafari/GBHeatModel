@@ -72,6 +72,7 @@ HEAT_USAGE    = DATA_DIR / "heat_demand_profiles_patterns"
 FES_DATA      = DATA_DIR / "FES_Spatial_Heat_Model"   # keep this matching your folder name
 NOTEBOOKS_DIR = PROJECT_ROOT / "Notebooks"
 OUTPUTS_DIR   = PROJECT_ROOT / "outputs"
+SCENARIO-ALIGNMENT = DATA_DIR / "Scenario_Alignment"
 
 
 # ---- Helpers --------------------------------------------------------------
