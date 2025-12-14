@@ -71,12 +71,12 @@ def calc_LA_overlap_within_grid_square(
     LAs_overlaps.set_index("Grid_ID", inplace=True)
 
     # Save to a consistent location inside this project
-    # out_path = path_in_data(
-    #     "Outputs",
-    #     "perc_LAs_in_grid_square.csv",
-    # )
-    # ensure_dir(out_path.parent)
-    # LAs_overlaps.to_csv(out_path)
+    out_path = path_in_data(
+        "Outputs",
+        "perc_LAs_in_grid_square.csv",
+    )
+    ensure_dir(out_path.parent)
+    LAs_overlaps.to_csv(out_path)
 
     return LAs_overlaps
 

@@ -93,13 +93,13 @@ def merge_shapefile_FES_heating_tech_file(
     )
     df_merged.set_index("Grid_ID", inplace=True)
 
-    # # Save merged result
-    # out_path = path_in_data(
-    #     "Outputs",
-    #     "merged_FES_heat_tech.csv",
-    # )
-    # ensure_dir(out_path.parent)
-    # df_merged.to_csv(out_path, index=False)
+    # Save merged result
+    out_path = path_in_data(
+        "Outputs",
+        "merged_FES_heat_tech.csv",
+    )
+    ensure_dir(out_path.parent)
+    df_merged.to_csv(out_path, index=False)
 
     return df_merged
 
@@ -152,7 +152,7 @@ def distribute_all_heating_techs_to_grids(
             )
             df_LA[tech] = df_LA["normalized_overlap"] * tech_total
 
-        keep_cols = ['Grid_ID', 'Local_Authority', 'Year', 'Scenario', 'Sector'] + [tech for tech in list_of_tech]
+        keep_cols = ['Grid_ID', 'LA_Code', 'Local_Authority', 'Year', 'Scenario', 'Sector'] + [tech for tech in list_of_tech]
         distributed_heat_tech.append(df_LA[keep_cols])
 
     distributed_df = pd.concat(distributed_heat_tech, ignore_index=True)

@@ -14,7 +14,7 @@ from . import Grid_squares_heat_tech_demand
 from . import cop
 from .electric_demand import electric_demand_for_heat
 import time
-from.scenario_alignment import scale_FES_dwellings, assign_tech_shares
+from.align_with_other_future_scenario import scale_FES_dwellings, assign_tech_shares
 
 
 

@@ -38,7 +38,7 @@ def calculate_heat_demand_for_grid_squares(
         df = df.reset_index()
 
     # Identify non-tech metadata columns (keep flexible)
-    meta_cols_base = ["Grid_ID", "Local_Authority", "Year", "Scenario", "Sector"]
+    meta_cols_base = ['Grid_ID', 'LA_Code', 'Local_Authority', 'Year', 'Scenario', 'Sector']
     meta_cols = [col for col in meta_cols_base if col in df.columns]
 
     # Tech columns are numeric columns that are not in the metadata list
@@ -48,8 +48,8 @@ def calculate_heat_demand_for_grid_squares(
     total_dwellings = df.groupby("Grid_ID")[tech_cols].sum().reset_index()
 
     # 2. Get one row of metadata per Grid_ID (first occurrence)
-    if any(c in df.columns for c in ["Year", "Scenario", "Sector"]):
-        meta_cols_for_group = [c for c in ["Year", "Scenario", "Sector"] if c in df.columns]
+    if any(c in df.columns for c in ['LA_Code', 'Local_Authority', 'Year', 'Scenario', 'Sector']):
+        meta_cols_for_group = [c for c in ['LA_Code', 'Local_Authority', 'Year', 'Scenario', 'Sector'] if c in df.columns]
         meta = (
             df.groupby("Grid_ID")[meta_cols_for_group]
             .first()
@@ -63,14 +63,14 @@ def calculate_heat_demand_for_grid_squares(
         )
 
     # 3. Reorder columns: metadata first, then techs
-    ordered_meta_cols = [c for c in ["Grid_ID", "Year", "Scenario", "Sector"] if c in total_dwellings.columns]
+    ordered_meta_cols = [c for c in ['Grid_ID', 'LA_Code', 'Local_Authority', 'Year', 'Scenario', 'Sector'] if c in total_dwellings.columns]
     ordered_tech_cols = [c for c in total_dwellings.columns if c not in ordered_meta_cols]
     total_dwellings = total_dwellings[ordered_meta_cols + ordered_tech_cols]
 
     # 4. Save to CSV (same behaviour as before)
-    # out_path = path_in_data("outputs", "heat_techs_distribution_grid_square.csv")
-    # ensure_dir(out_path.parent)
-    # grid_square_hd.to_csv(out_path, index=False)
+    out_path = path_in_data("outputs", "heat_techs_distribution_grid_square.csv")
+    ensure_dir(out_path.parent)
+    total_dwellings.to_csv(out_path, index=False)
 
     return total_dwellings
 
