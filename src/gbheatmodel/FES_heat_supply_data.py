@@ -33,7 +33,7 @@ def read_FES_heat_supply(FES: str) -> pd.DataFrame:
         pattern = "la_level_outputs_{year}_domestic_all_scenarios_org_updated.csv"
     elif FES == "2022":
         years = ["2020", "2025", "2030", "2035", "2040", "2045", "2050"]
-        pattern = "fes22_la_level_outputs_{year}_domestic_all_scenarios.csv"
+        pattern = "fes22_la_level_outputs_{year}_residential_all_scenarios.csv"
     else:
         raise ValueError(f"Unsupported FES vintage: {FES!r}. Expected '2021' or '2022'.")
 

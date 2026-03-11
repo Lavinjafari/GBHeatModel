@@ -73,7 +73,7 @@ def calc_LA_overlap_within_grid_square(
     # Save to a consistent location inside this project
     out_path = path_in_data(
         "Outputs",
-        "perc_LAs_in_grid_square.csv",
+        "LAs_overlaps.csv",
     )
     ensure_dir(out_path.parent)
     LAs_overlaps.to_csv(out_path)
