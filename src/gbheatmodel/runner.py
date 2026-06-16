@@ -15,7 +15,7 @@ from . import cop
 from .electric_demand import electric_demand_for_heat
 import time
 from.align_with_other_future_scenario import scale_FES_dwellings, assign_tech_shares
-
+from .FES_scaling_factor import FES_scaling_factor_calc
 
 
 def profiles_output_dir(

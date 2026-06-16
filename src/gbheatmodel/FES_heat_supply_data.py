@@ -71,6 +71,10 @@ def year_FES_heat_supply(year, FES, scenario=None):
 
 if __name__ == "__main__":
     # Simple manual test
-    df_test = year_FES_heat_supply(2031, "2021", scenario="LW")
+    df_test = year_FES_heat_supply(2050, "2022", scenario="LW")
     print(df_test.head())
     print(f"Rows: {len(df_test)}")
+    from pathlib import Path
+
+    path_out = Path(r"C:\Users\s2583817\OneDrive - University of Edinburgh\Documents\Projects\PhD_Project\Python\GBHeatModel\data") / "output.csv"
+    df_test.to_csv(path_out, index=False)
