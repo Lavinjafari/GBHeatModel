@@ -30,7 +30,7 @@ def read_FES_heat_supply(FES: str) -> pd.DataFrame:
 
     if FES == "2021":
         years = ["2020", "2025", "2030", "2035"]
-        pattern = "la_level_outputs_{year}_domestic_all_scenarios_org_updated.csv"
+        pattern = "fes21_la_level_outputs_{year}_residential_all_scenarios.csv"
     elif FES == "2022":
         years = ["2020", "2025", "2030", "2035", "2040", "2045", "2050"]
         pattern = "fes22_la_level_outputs_{year}_residential_all_scenarios.csv"
