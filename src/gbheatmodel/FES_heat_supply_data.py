@@ -33,7 +33,7 @@ def read_FES_heat_supply(FES: str) -> pd.DataFrame:
         pattern = "la_level_outputs_{year}_domestic_all_scenarios_org_updated.csv"
     elif FES == "2022":
         years = ["2020", "2025", "2030", "2035", "2040", "2045", "2050"]
-        pattern = "fes22_la_level_outputs_{year}_domestic_all_scenarios.csv"
+        pattern = "fes22_la_level_outputs_{year}_residential_all_scenarios.csv"
     else:
         raise ValueError(f"Unsupported FES vintage: {FES!r}. Expected '2021' or '2022'.")
 
@@ -71,6 +71,10 @@ def year_FES_heat_supply(year, FES, scenario=None):
 
 if __name__ == "__main__":
     # Simple manual test
-    df_test = year_FES_heat_supply(2031, "2021", scenario="LW")
+    df_test = year_FES_heat_supply(2050, "2022", scenario="LW")
     print(df_test.head())
     print(f"Rows: {len(df_test)}")
+    from pathlib import Path
+
+    path_out = Path(r"C:\Users\s2583817\OneDrive - University of Edinburgh\Documents\Projects\PhD_Project\Python\GBHeatModel\data") / "output.csv"
+    df_test.to_csv(path_out, index=False)

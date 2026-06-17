@@ -57,7 +57,7 @@ def merge_shapefile_FES_heating_tech_file(
     )
 
     # (Optional) tech list if needed somewhere else
-    _list_of_tech = df.columns.values[4:18]
+    list_of_tech = df.columns.values[4:18]
 
     # Clean / align LA naming
     LA_overlaps["Local_Authority"] = LA_overlaps["Local_Authority"].astype(str)

@@ -121,20 +121,24 @@ if __name__ == "__main__":
     grid_squares = gpd.read_file(grids_path)
 
     LA_overlaps = LA_overlaps_within_grid_squares.calc_LA_overlap_within_grid_square(
-        grid_squares, LA_shapefile, weather_year
-    )
+        grid_squares, LA_shapefile, weather_year)
+    
+    df_merged = heat_tech_distribution. merge_shapefile_FES_heating_tech_file(
+         grid_squares=grid_squares,
+        LA_overlaps=LA_overlaps,
+        future_year=future_year,
+        FES_year=FES,
+        scenario=scenario,
+        weather_year=weather_year,)
+    
+    distributed_df = heat_tech_distribution.distribute_all_heating_techs_to_grids(
+        df_merged)
 
     # Calculate heat demand
-    grid_square_hd = calculate_heat_demand_for_grid_squares(
-        LA_overlaps,
-        weather_year,
-        future_year,
-        FES,
-        scenario,
-        LA_shapefile,
-        grid_squares,
-    )
+    total_dwellings = calculate_heat_demand_for_grid_squares(
+        distributed_df)
 
     # Use heat demand result to prepare air temperature grid
     site = prepare_site_to_calc_air_temp(grid_square_hd)
     print(site.head())
+    
