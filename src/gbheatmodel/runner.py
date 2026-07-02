@@ -212,6 +212,7 @@ def run_electric_demand(
     FES_year,
     scenario,
     future_year,
+    weather_year,
     save=True,
 ):
     """
@@ -244,7 +245,7 @@ def run_electric_demand(
     )
 
     if save:
-        out_dir = path_in_data("outputs", "electric_demand", f"{FES_year}_{scenario}_{future_year}")
+        out_dir = path_in_data("outputs", "electric_demand", f"{weather_year}_{FES_year}_{scenario}_{future_year}")
         ensure_dir(out_dir)
 
         for grid_id, df in ed_grid_sqs.items():
