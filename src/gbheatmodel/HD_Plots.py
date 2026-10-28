@@ -468,29 +468,158 @@ def plot_tech_heatmaps(scaled_profiles_dict):
 
 def plot_area_full_year(profiles, grid_id=None):
     """
-    Stacked area plot of half-hourly heat demand across the full year.
-    If grid_id=None: sum all grids (national).
-    Otherwise: plot that grid only.
+    Publication-style stacked area plot of half-hourly heat demand
+    across the full year.
+
+    If grid_id=None:
+        Sum all grid cells and plot national heat demand.
+
+    Otherwise:
+        Plot the selected grid cell only.
     """
 
-    # --- Select grid or all grids ---
+    # ========================================================
+    # 0. Reset any previously applied matplotlib style
+    # ========================================================
+
+    plt.style.use("default")
+
+
+    # ========================================================
+    # 1. Select national or grid-level profile
+    # ========================================================
+
     if grid_id is None:
-        df = sum(df for df in profiles.values())
-        title = "National Half-Hourly Heat Demand (Stacked Area)"
+
+        df = sum(
+            profile for profile in profiles.values()
+        )
+
+        title = "Annual Half-Hourly Heat Demand"
+
     else:
+
         df = profiles[grid_id]
-        title = f"Half-Hourly Heat Demand – Grid {grid_id}"
+
+        title = (
+            f"Annual Half-Hourly Heat Demand – Grid {grid_id}"
+        )
+
 
     if df.empty:
         print("DataFrame is empty, cannot plot.")
         return
 
-    plt.style.use("ggplot")
-    df.plot.area(figsize=(20, 8), cmap="tab20", stacked=True)
-    plt.title(title)
-    plt.xlabel("Date-Time")
-    plt.ylabel("Heat Demand (kWh)")
-    plt.tight_layout()
+
+    # ========================================================
+    # 2. Create figure
+    # ========================================================
+
+    fig, ax = plt.subplots(
+        figsize=(18, 7),
+        facecolor="white"
+    )
+
+    ax.set_facecolor("white")
+
+
+    # ========================================================
+    # 3. Stacked area plot
+    # ========================================================
+
+    df.plot.area(
+        ax=ax,
+        stacked=True,
+        cmap="tab20",
+        linewidth=0
+    )
+
+
+    # ========================================================
+    # 4. Title and axis labels
+    # ========================================================
+
+    ax.set_title(
+        title,
+        fontsize=24,
+        fontweight="bold",
+        pad=20
+    )
+
+    ax.set_xlabel(
+        "Date",
+        fontsize=18,
+        fontweight="bold",
+        labelpad=10
+    )
+
+    ax.set_ylabel(
+        "Heat Demand (kWh per half-hour)",
+        fontsize=18,
+        fontweight="bold",
+        labelpad=10
+    )
+
+
+    # ========================================================
+    # 5. Tick labels
+    # ========================================================
+
+    ax.tick_params(
+        axis="both",
+        which="major",
+        labelsize=15
+    )
+
+
+    # ========================================================
+    # 6. Grid
+    # ========================================================
+
+    # Horizontal grid only
+    ax.grid(
+        axis="y",
+        alpha=0.25,
+        linewidth=0.8
+    )
+
+    ax.grid(
+        axis="x",
+        visible=False
+    )
+
+
+    # ========================================================
+    # 7. Clean frame
+    # ========================================================
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+
+    # ========================================================
+    # 8. Legend
+    # ========================================================
+
+    ax.legend(
+        title="Heating Technology",
+        fontsize=12,
+        title_fontsize=13,
+        frameon=False,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.16),
+        ncol=4
+    )
+
+
+    # ========================================================
+    # 9. Layout
+    # ========================================================
+
+    fig.subplots_adjust(
+        bottom=0.23
+    )
+
     plt.show()
 
 def plot_area_one_week(
