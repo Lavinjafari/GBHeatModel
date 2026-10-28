@@ -39,7 +39,23 @@ GBheat/
 .DS_Store
 Thumbs.db
 
-# Deliberately do NOT ignore data/, data/air_temp/,
-# data/FES_Spatial_Heat_Model/, data/heat_demand_profiles_patterns/,
-# data/LAs_shapefile_2021/, data/Scenario_Alignment/,
-# data/spatial_operators/, or standalone input files.
+
+# ============================================================
+# GBHeat — Externally hosted model inputs
+# Downloaded separately from Zenodo
+# ============================================================
+
+/data/Atlite/
+/data/air_temp/
+/data/heat_demand_profiles_patterns/
+
+# ============================================================
+# Generated model outputs — always local
+# ============================================================
+
+/data/outputs/
+
+# Deliberately do NOT ignore data/FES_Spatial_Heat_Model/
+# data/LAs_shapefile_2021/
+# data/Scenario_Alignment/
+# data/spatial_operators/ or standalone input files.
