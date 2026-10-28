@@ -1,39 +1,45 @@
-# ==== Python junk ====
+# GBHeatModel — version-control policy
+# Track the model source, notebooks, configurations and all redistributable
+# input datasets under data/. Only generated results and external raw ERA5
+# archives are excluded.
+
+# Generated results (keep locally; regenerate from inputs)
+/data/outputs/
+/outputs/
+/Figures/
+
+# Raw ERA5/Atlite weather archives hosted externally on Zenodo.
+# Keep this rule ONLY if data/Atlite/ contains the downloadable raw data.
+/data/Atlite/
+
+# Python build/runtime files
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# ==== Heavy data to keep locally but NOT in Git ====
-Aggregation_files/
-data/
-data/heat_demand_profiles_patterns/
-data/Atlite/
-data/FES_Spatial_Heat_Model/
-data/LAs_shapefile_2021/
-data/air_temp
-outputs/
-Figures/
+# Notebook runtime files
+.ipynb_checkpoints/
 
-# single heavy files
-data/UK_Atlite_Grid_sq.gpkg
-normalised_half_hourly_profiles.xlsx
-# Common large scientific / archive files
-*.nc
-*.h5
-*.hdf5
-*.zarr
-*.zip
-*.tar
-*.tar.
-
-# Virtual environments
-.env
+# Virtual environments and local secrets
+.venv/
+venv/
 GBheat/
+.env
+.env.*
+!.env.example
 
-# IDE / OS junk
+# Local IDE and OS metadata
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
 
+# Deliberately do NOT ignore data/, data/air_temp/,
+# data/FES_Spatial_Heat_Model/, data/heat_demand_profiles_patterns/,
+# data/LAs_shapefile_2021/, data/Scenario_Alignment/,
+# data/spatial_operators/, or standalone input files.

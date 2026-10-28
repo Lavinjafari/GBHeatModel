@@ -21,6 +21,17 @@ dependencies = [
     "tqdm"
 ]
 
+# Install with: python -m pip install -e ".[notebooks]"
+[project.optional-dependencies]
+notebooks = [
+    "jupyterlab>=4",
+    "ipykernel",
+    "matplotlib",
+    "seaborn",
+    "openpyxl",
+    "shapely"
+]
+
 [project.urls]
 Homepage = "https://github.com/Lavinjafari/GBHeatModel"
 
