@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 
 from .path import path_in_data
+from .fes_technology_schema import harmonise_fes_headers
 
 FES_RELEASE_YEARS = {
     "2021": (2020, 2025, 2030, 2035),
@@ -110,6 +111,8 @@ def read_FES_heat_supply(
         if not p.is_file():
             raise FileNotFoundError(f"Required FES {vintage} stock file missing: {p}")
         df = pd.read_csv(p, index_col=1)
+        # Accept both historical and October 2026 NESO hybrid headers.
+        df = harmonise_fes_headers(df, target="gbheat")
         df.index = df.index.astype(str).str.strip()
         if "Year" not in df or (pd.to_numeric(df["Year"], errors="coerce") != year).any():
             raise ValueError(f"Unexpected 'Year' values in {p}")

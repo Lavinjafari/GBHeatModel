@@ -4,7 +4,14 @@ import os
 from gbheatmodel.path import path_in_data, ensure_dir
 
 
-def electric_demand_for_heat(HD_profiles, grid_sqs, df_ASHP, df_GSHP):
+def electric_demand_for_heat(
+        HD_profiles,
+        grid_sqs,
+        df_ASHP,
+        df_GSHP,
+        *,
+        biofuel_hybrid_ashp_share=None,
+    ):
     """
     Convert heat-demand profiles to electric-demand profiles using COP profiles.
 
@@ -36,10 +43,18 @@ def electric_demand_for_heat(HD_profiles, grid_sqs, df_ASHP, df_GSHP):
     required_cols = [
         "ASHP",
         "GSHP",
-        "Hybrid (ASHP + BioLPG boiler)",
         "Hybrid (ASHP + Hydrogen boiler)",
         "Hybrid (ASHP + Electric resistive)",
     ]
+
+    biolpg_hybrid = "Hybrid (ASHP + BioLPG boiler)"
+    biofuel_hybrid = "Hybrid (ASHP + Biofuel boiler)"
+
+    if biofuel_hybrid_ashp_share is not None:
+        if not 0 <= biofuel_hybrid_ashp_share <= 1:
+            raise ValueError(
+                "biofuel_hybrid_ashp_share must be between 0 and 1."
+            )
 
     for grid_id in grid_sqs:
         if grid_id not in HD_profiles:
@@ -50,7 +65,33 @@ def electric_demand_for_heat(HD_profiles, grid_sqs, df_ASHP, df_GSHP):
             continue
 
         # Heat demand for this grid
-        elec_hd_df = HD_profiles[grid_id].loc[:, required_cols].copy()
+        heat_df = HD_profiles[grid_id]
+
+        has_biolpg = biolpg_hybrid in heat_df.columns
+        has_biofuel = biofuel_hybrid in heat_df.columns
+
+        if has_biolpg == has_biofuel:
+            raise ValueError(
+                f"Grid {grid_id}: expected exactly one of "
+                "BioLPG or Biofuel hybrid technologies."
+            )
+
+        hybrid_tech = biolpg_hybrid if has_biolpg else biofuel_hybrid
+
+        if has_biofuel and biofuel_hybrid_ashp_share is None:
+            raise ValueError(
+                "FES Biofuel hybrid detected. Specify its ASHP heat "
+                "share explicitly before calculating electricity demand."
+            )
+
+        missing = [col for col in required_cols if col not in heat_df.columns]
+
+        if missing:
+            raise ValueError(
+                f"Grid {grid_id}: missing heat-demand columns: {missing}"
+            )
+
+        elec_hd_df = heat_df.loc[:, required_cols + [hybrid_tech]].copy()
         elec_hd_df.index = pd.to_datetime(elec_hd_df.index)
 
         # COP series for this grid aligned to heat-demand index
@@ -61,8 +102,16 @@ def electric_demand_for_heat(HD_profiles, grid_sqs, df_ASHP, df_GSHP):
         elec_hd_df["ASHP Elec"] = elec_hd_df["ASHP"] / cop_ASHP
         elec_hd_df["GSHP Elec"] = elec_hd_df["GSHP"] / cop_GSHP
 
-        elec_hd_df["Hybrid (ASHP + BioLPG boiler) Elec"] = (
-            0.70 * elec_hd_df["Hybrid (ASHP + BioLPG boiler)"] / cop_ASHP
+        hybrid_ashp_share = (
+            0.70
+            if has_biolpg
+            else biofuel_hybrid_ashp_share
+        )
+
+        hybrid_elec_col = f"{hybrid_tech} Elec"
+
+        elec_hd_df[hybrid_elec_col] = (
+            hybrid_ashp_share * elec_hd_df[hybrid_tech] / cop_ASHP
         )
         elec_hd_df["Hybrid (ASHP + Hydrogen boiler) Elec"] = (
             0.90 * elec_hd_df["Hybrid (ASHP + Hydrogen boiler)"] / cop_ASHP
@@ -76,7 +125,7 @@ def electric_demand_for_heat(HD_profiles, grid_sqs, df_ASHP, df_GSHP):
             [
                 "ASHP Elec",
                 "GSHP Elec",
-                "Hybrid (ASHP + BioLPG boiler) Elec",
+                hybrid_elec_col,
                 "Hybrid (ASHP + Hydrogen boiler) Elec",
                 "Hybrid (ASHP + Electric resistive) Elec",
             ]

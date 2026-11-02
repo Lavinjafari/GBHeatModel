@@ -34,9 +34,11 @@ def base_heat_pattern_per_technology() -> pd.DataFrame:
     other_techs = [
         "Oil boiler",
         "Biomass boiler",
-        "BioLPG boiler",
+        "Biofuel boiler",                 # FES 2024
+        "BioLPG boiler",                  # FES 2025
         "Community",
-        "Hybrid (ASHP + BioLPG boiler)",
+        "Hybrid (ASHP + Biofuel boiler)",  # FES 2024
+        "Hybrid (ASHP + BioLPG boiler)",   # FES 2025
         "Hybrid (ASHP + Hydrogen boiler)",
         "DH",
         "Electric resistive",
@@ -99,6 +101,36 @@ def scaling_half_hourly_profiles_grid_sqs(
         )
     )
     base_pattern = base_heat_pattern_per_technology()
+    
+    # Identify technologies actually present in the selected FES release.
+    technology_columns = [
+        col for col in total_dwellings.columns
+        if col in base_pattern.index
+    ]
+
+    if len(technology_columns) != 14:
+        raise ValueError(
+            f"Expected 14 FES heating technologies, "
+            f"found {len(technology_columns)}: {technology_columns}"
+        )
+
+    # Prevent unexpected numeric technology columns from being ignored.
+    metadata_columns = {
+        "Grid_ID", "LA_Code", "Local_Authority",
+        "Year", "Scenario", "Pathway", "Sector", "CODE_x"
+    }
+
+    unexpected_columns = [
+        col for col in total_dwellings.columns
+        if col not in technology_columns
+        and col not in metadata_columns
+    ]
+
+    if unexpected_columns:
+        raise ValueError(
+            f"Unrecognised columns in grid-level stock data: "
+            f"{unexpected_columns}"
+        )
 
     # --- 4. Output directory (updated to use path_in_data) ---
     if output_dir is None:
@@ -166,8 +198,8 @@ def scaling_half_hourly_profiles_grid_sqs(
                 pattern_profile["daytime"].values * float(base_pattern.loc[tech, "daytime"])
                 + pattern_profile["bi-modal"].values * float(base_pattern.loc[tech, "bi-modal"])
                 + pattern_profile["continuous"].values * float(base_pattern.loc[tech, "continuous"])
-            ) * float(tech_dwellings.get(tech, 0)) * FES_scaling
-            for tech in base_pattern.index
+            ) * float(tech_dwellings[tech]) * FES_scaling
+            for tech in technology_columns
         }
 
         scaled_profile = pd.DataFrame.from_dict(data, orient="columns")

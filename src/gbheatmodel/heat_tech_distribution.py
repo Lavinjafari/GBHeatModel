@@ -56,8 +56,6 @@ def merge_shapefile_FES_heating_tech_file(
         scenario,
     )
 
-    # (Optional) tech list if needed somewhere else
-    list_of_tech = df.columns.values[4:18]
 
     # Clean / align LA naming
     LA_overlaps["Local_Authority"] = LA_overlaps["Local_Authority"].astype(str)
@@ -95,7 +93,7 @@ def merge_shapefile_FES_heating_tech_file(
 
     # Save merged result
     out_path = path_in_data(
-        "Outputs",
+        "outputs",
         "merged_FES_heat_tech.csv",
     )
     ensure_dir(out_path.parent)
@@ -125,8 +123,79 @@ def distribute_all_heating_techs_to_grids(
         DataFrame with heating techs distributed to each grid square.
     """
 
-    # Assume technology columns start from column index 13 onward
-    list_of_tech = df_merged.columns[13:]
+    # FES technology columns after LA matching (stock prefix removed).
+    metadata_cols = {
+        "CODE_x",
+        "Grid_ID",
+        "LA_Code",
+        "Local_Authority",
+        "Year",
+        "Scenario",
+        "Pathway",
+        "Sector",
+        "grid_x",
+        "grid_y",
+        "overlap_percentage",
+        "normalized_overlap",
+        "geometry",
+    }
+
+    list_of_tech = [
+        col for col in df_merged.columns
+        if col not in metadata_cols
+        and (
+            col in {
+                "ASHP",
+                "GSHP",
+                "Gas boiler",
+                "Oil boiler",
+                "Biomass boiler",
+                "Biofuel boiler",
+                "BioLPG boiler",
+                "Electric resistive",
+                "Electric storage",
+                "Community",
+                "DH",
+                "Hydrogen boiler",
+                "Hybrid (ASHP + Biofuel boiler)",
+                "Hybrid (ASHP + BioLPG boiler)",
+                "Hybrid (ASHP + Hydrogen boiler)",
+                "Hybrid (ASHP + Electric resistive)",
+            }
+        )
+    ]
+
+    if len(list_of_tech) != 14:
+        raise ValueError(
+            f"Expected 14 heating technology columns, "
+            f"found {len(list_of_tech)}: {list_of_tech}"
+        )
+    
+    # Ensure FES stocks are present and numeric before allocation.
+    if df_merged[list_of_tech].isna().any().any():
+        raise ValueError(
+            "Missing heating-technology stocks after LA matching. "
+            "Check unmatched Local Authorities."
+        )
+
+    for tech in list_of_tech:
+        if not pd.api.types.is_numeric_dtype(df_merged[tech]):
+            raise TypeError(f"Technology stock is not numeric: {tech}")
+
+    # Every LA must have a positive total overlap weight.
+    overlap_sums = df_merged.groupby("Local_Authority")[
+        "overlap_percentage"
+    ].sum()
+
+    if (
+        df_merged["overlap_percentage"].isna().any()
+        or (df_merged["overlap_percentage"] < 0).any()
+        or (overlap_sums <= 0).any()
+    ):
+        raise ValueError(
+            "Invalid or zero LA-grid overlap weights."
+        )
+
     distributed_heat_tech: list[pd.DataFrame] = []
 
     for LA in df_merged["Local_Authority"].unique():
@@ -146,13 +215,23 @@ def distribute_all_heating_techs_to_grids(
 
         for tech in list_of_tech:
             tech_total = df_LA[tech].iloc[0]
-            # Normalise overlap_percentage once per LA
-            df_LA["normalized_overlap"] = (
-            df_LA["overlap_percentage"] / df_LA["overlap_percentage"].sum()
-            )
             df_LA[tech] = df_LA["normalized_overlap"] * tech_total
 
-        keep_cols = ['Grid_ID', 'LA_Code', 'Local_Authority', 'Year', 'Scenario', 'Sector'] + [tech for tech in list_of_tech]
+        metadata_to_keep = [
+            "Grid_ID",
+            "LA_Code",
+            "Local_Authority",
+            "Year",
+            "Scenario",
+            "Pathway",
+            "Sector",
+        ]
+
+        keep_cols = [
+            col for col in metadata_to_keep
+            if col in df_LA.columns
+        ] + list_of_tech
+
         distributed_heat_tech.append(df_LA[keep_cols])
 
     distributed_df = pd.concat(distributed_heat_tech, ignore_index=True)

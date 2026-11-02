@@ -54,7 +54,43 @@ These updated modules correctly **load** FES 2024 and 2025, but are **not an end
 ## Validation completed
 
 `pytest -q tests/test_fes_releases.py` — 10 tests passed against the full supplied archive; tested scenarios, years, selected rows, missing historical technologies, FES 2024 Biofuel, FES 2025 district/communal labels and annual scaling. No full GBHeat pipeline or numerical model-output equivalence test has been executed.
+## NESO technology-name alignment — October 2026
 
+GBHeat supports FES spatial heating-technology stock datasets from the 2021, 2022, 2024 and 2025 releases.
+
+On 28 October 2026, NESO announced updates to historical spatial heat dataset column identifiers for hybrid heating technologies. The revised identifiers use the form `Hybrid ASHP and [technology]` instead of `Hybrid (ASHP + [technology])`, affecting `stock` and `stock_proportion` fields.
+
+**Official source:** [NESO — Local Authority Level Spatial Heat Model Outputs (FES)](https://www.neso.energy/data-portal/local-authority-level-spatial-heat-model-outputs-fes)
+
+### Technology-name harmonisation
+
+| Updated NESO name | GBHeat internal name |
+|---|---|
+| Hybrid ASHP and Biofuel boiler | Hybrid (ASHP + Biofuel boiler) |
+| Hybrid ASHP and BioLPG boiler | Hybrid (ASHP + BioLPG boiler) |
+| Hybrid ASHP and Hydrogen boiler | Hybrid (ASHP + Hydrogen boiler) |
+| Hybrid ASHP and Electric resistive | Hybrid (ASHP + Electric resistive) |
+
+The `fes_technology_schema.py` module accepts historical and updated identifiers. `FES_heat_supply_data.py` normalises the source headers when reading the datasets, retaining backward compatibility with the downstream GBHeat modules.
+
+Biofuel and BioLPG technology categories remain distinct. No automatic fuel substitution is performed.
+
+Each selected FES release contains 14 heating-technology stock categories. The technology-pattern library recognises both release-specific Biofuel and BioLPG names, but generated profiles are limited to the 14 technologies present in the selected dataset.
+
+### Validation
+
+For FES 2024 Electric Engagement (2050) and FES 2025 Holistic Transition (2050), the following checks passed:
+
+- Reading 371 original FES Local Authority records and 14 heating-technology columns.
+- Harmonising 371 source authorities to 363 authorities aligned with the GBHeat 2021 LA geography.
+- Preserving all 14 national technology-stock totals during LA harmonisation.
+- Allocating technology stocks to 738 weather-grid cells while conserving national totals.
+- Matching all 14 technologies to heating-use-pattern coefficients.
+- Testing the Biofuel hybrid electricity calculation with an explicitly supplied 70% ASHP heat share, used for test purposes only.
+
+The existing GBHeat heat-demand equations and heating-use-pattern coefficients were retained.
+
+**Scope limitation:** These checks establish input-schema and spatial-stock compatibility for the tested configurations. Full half-hourly simulations and downstream electricity-demand coverage for all FES pathways have not yet been validated. Standalone electric resistive and storage electricity-demand treatment is outside the scope of this alignment update.
 ## Git procedure (PowerShell from the repository root)
 
 ```powershell
