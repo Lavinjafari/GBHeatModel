@@ -116,8 +116,16 @@ def scaling_half_hourly_profiles_grid_sqs(
 
     # Prevent unexpected numeric technology columns from being ignored.
     metadata_columns = {
-        "Grid_ID", "LA_Code", "Local_Authority",
-        "Year", "Scenario", "Pathway", "Sector", "CODE_x"
+        "Grid_ID",
+        "LA_Code",
+        "Local_Authority",
+        "Year",
+        "Scenario",
+        "Pathway",
+        "Sector",
+        "CODE_x",
+        "Total",
+        "TotalHPs",
     }
 
     unexpected_columns = [

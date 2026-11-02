@@ -91,6 +91,16 @@ For FES 2024 Electric Engagement (2050) and FES 2025 Holistic Transition (2050),
 The existing GBHeat heat-demand equations and heating-use-pattern coefficients were retained.
 
 **Scope limitation:** These checks establish input-schema and spatial-stock compatibility for the tested configurations. Full half-hourly simulations and downstream electricity-demand coverage for all FES pathways have not yet been validated. Standalone electric resistive and storage electricity-demand treatment is outside the scope of this alignment update.
+
+### Historical FES summary columns
+
+FES 2021 and FES 2022 spatial heat outputs contain 16 columns with the `stock ` prefix. However, only 14 represent individual heating technologies.
+
+The additional columns, `stock Total` and `stock TotalHPs`, are aggregate summary variables rather than independent heating technologies. GBHeat excludes these fields from technology-level stock distribution and heating-demand profile generation to avoid double-counting.
+
+FES 2024 and FES 2025 contain 14 individual technology-stock columns without these additional summary fields in the tested datasets.
+
+GBHeat therefore retains a 14-technology modelling framework across all four FES releases, with release-specific treatment of Biofuel and BioLPG technology names.
 ## Git procedure (PowerShell from the repository root)
 
 ```powershell

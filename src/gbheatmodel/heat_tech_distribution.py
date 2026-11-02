@@ -164,6 +164,17 @@ def distribute_all_heating_techs_to_grids(
             }
         )
     ]
+    
+    # FES 2021/2022 include summary fields:
+    # "Total" and "TotalHPs" are not individual heating technologies.
+    # They must not be distributed as additional technology stocks.
+    summary_columns = {"Total", "TotalHPs"}
+
+    if any(col in list_of_tech for col in summary_columns):
+        raise ValueError(
+            "FES summary columns were incorrectly selected "
+            "as heating technologies."
+        )
 
     if len(list_of_tech) != 14:
         raise ValueError(
