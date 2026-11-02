@@ -57,5 +57,5 @@ Thumbs.db
 
 # Deliberately do NOT ignore data/FES_Spatial_Heat_Model/
 # data/LAs_shapefile_2021/
-# data/Scenario_Alignment/
+
 # data/spatial_operators/ or standalone input files.
