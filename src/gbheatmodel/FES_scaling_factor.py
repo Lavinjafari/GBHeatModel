@@ -1,42 +1,42 @@
-# src/gbheatmodel/FES_scaling_factor.py
+"""Annual domestic heating-demand scaling relative to FES historic 2020.
 
+Preserves GBHeat's existing scalar definition:
+    projected annual residential heat demand / FES historical 2020 demand.
+"""
 from __future__ import annotations
 from pathlib import Path
 import pandas as pd
 
-from .path import FES_DATA
+from .path import path_in_data
+from .FES_heat_supply_data import _vintage, resolve_FES_scenario
 
 
-def FES_scaling_factor_calc(future_year, FES, scenario):
+def FES_scaling_factor_calc(future_year, FES, scenario, *, data_dir=None) -> float:
+    """Return dimensionless heating demand scaling for a year/pathway/vintage.
+
+    `data_dir` optionally overrides the specific FES vintage directory, useful
+    for tests. Reject unknown vintage, pathway, year, and missing numeric values.
     """
-    Calculate the scaling factor for the heat demand data for a given year, FES year, and FES scenario.
-    Needed due to large assumptions around fabric upgrades, building standards, and behavioural change in FES
-    which drives down heat demand dramatically.
-    """
-    
-    file = 'data/FES_Spatial_Heat_Model/' + FES + '/' + 'Annual Heat Demand - FES' + FES[-2:] + '.csv'
-    if scenario == 'LW':
-        scenario = 'Leading the Way'
-    elif scenario == 'CT':
-        scenario = 'Consumer Transformation'
-    elif scenario == 'ST':
-        scenario = 'System Transformation'
-    elif scenario == 'FS':
-        scenario = 'Falling Short'
-    elif scenario == 'SP':
-        scenario = 'Steady Progression'
-    data = pd.read_csv(file, index_col=0)
-    future_heat_demand = data.loc[scenario, str(future_year)]
-    # RHPP dataset is from 2014-2016 so using 2015 demand levels to scale against
-    # However, the modelling predicts historic heat demand in 2020 exactly. So going with that as baseline fabric level.
-    RHPP_heat_demand = data.loc['History', '2020']
-
-    return future_heat_demand / RHPP_heat_demand
-
-# ---------------------------------------------------------------------------
-# Self-test (only when executed directly)
-# ---------------------------------------------------------------------------
-if __name__ == "__main__":
-    # Example test
-    scale = FES_scaling_factor_calc(2050, "2022", "LW")
-    print("Scaling factor (LW, 2050, FES 2022):", scale)
+    vintage = _vintage(FES)
+    _, full_name = resolve_FES_scenario(vintage, scenario)
+    base = Path(data_dir) if data_dir is not None else path_in_data("FES_Spatial_Heat_Model", vintage)
+    path = base / f"Annual Heat Demand - FES{vintage[-2:]}.csv"
+    if not path.is_file():
+        raise FileNotFoundError(f"Missing FES annual residential heat-demand table: {path}")
+    df = pd.read_csv(path, index_col=0)
+    # Recent FES CSVs have trailing provenance text and sometimes spaces in
+    # names; use exact stripped scenario labels, not partial text matching.
+    df.index = df.index.map(lambda x: str(x).strip())
+    df.columns = df.columns.map(str)
+    target = str(int(future_year))
+    if target not in df.columns:
+        raise ValueError(f"FES {vintage} annual-demand table has no year {target}")
+    if full_name not in df.index:
+        raise ValueError(f"FES {vintage} annual-demand table has no pathway {full_name!r}")
+    if "History" not in df.index or "2020" not in df.columns:
+        raise ValueError(f"FES {vintage} annual-demand table has no historic 2020 reference")
+    future = pd.to_numeric(pd.Series([df.loc[full_name, target]]), errors="coerce").iloc[0]
+    historical = pd.to_numeric(pd.Series([df.loc["History", "2020"]]), errors="coerce").iloc[0]
+    if pd.isna(future) or pd.isna(historical) or historical <= 0 or future < 0:
+        raise ValueError(f"Missing/invalid demand value for FES {vintage}, {full_name}, {target}")
+    return float(future / historical)

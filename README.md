@@ -160,7 +160,7 @@ profiles = run_heat_profiles_only(
     scenario="LW",
 )
 ```
-
+- [FES data compatibility (2021–2025)](docs/fes-data-compatibility.md) — Supported FES releases, scenario identifiers, heating technologies and compatibility notes.
 This is a **full grid-level calculation** and requires the external heating-pattern data. It is not intended as a lightweight, data-free quickstart.
 
 ### 4. Derive heat-pump COP and heating electricity demand
