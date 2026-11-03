@@ -231,3 +231,14 @@ The modelling methods draw on Watson et al. (2021, 2023), ERA5 reanalysis and NE
 ## Maintainers and contributions
 
 Developed within the **Institute for Energy Systems, School of Engineering, University of Edinburgh**. For questions, reproducibility reports and code improvements, use [GitHub Issues](https://github.com/Lavinjafari/GBHeatModel/issues). Please include your weather year, FES vintage, scenario, Python environment and a minimal error trace when reporting a problem.
+
+### Weather-dependent inputs (Zenodo)
+
+The GBHeat temperature and heating-use-pattern input archives are hosted on [Zenodo (record 23734614)](https://zenodo.org/records/23734614). GBHeat can prepare inputs for a selected weather year using:
+
+```powershell
+python -m gbheatmodel.zenodo_inputs --year 2012 --kind temperature --download --extract
+python -m gbheatmodel.zenodo_inputs --year 2012 --kind patterns --download --extract
+```
+
+The downloader caches the complete Zenodo archives for reuse, then extracts the selected year's files to the existing `data/air_temp/` and `data/heat_demand_profiles_patterns/` model-input directories. `air_temp_YEAR.csv` and `average_day_air_temp_YEAR.csv` are both recognised, when present in the temperature archive. Existing matching files are skipped; differing files are never overwritten automatically. On first use, downloading a single weather year may require downloading the entire archive (approximately 367 MB for temperature or 7.60 GB for patterns).
