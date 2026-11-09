@@ -1,0 +1,13 @@
+# GBHeatModel - GitHub language classification
+
+# Count Python source files as Python
+*.py linguist-language=Python
+
+# Keep Jupyter notebooks in the repository,
+# but exclude them from GitHub language statistics
+*.ipynb -linguist-detectable
+
+# Normalise text-file line endings across Windows, Linux and macOS
+*.py text eol=lf
+*.ipynb text eol=lf
+*.md text eol=lf
