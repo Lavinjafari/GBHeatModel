@@ -118,6 +118,10 @@ jupyter lab
 
 Installation uses the **local repository**, not a package published to PyPI. Select the Jupyter kernel belonging to the environment in which you installed `gbheatmodel`.
 
+```bash
+python -c "import gbheatmodel; print('GBHeat installed successfully')"
+```
+
 ### 2. Obtain the required model data
 
 The repository contains the smaller reference inputs (FES spatial heat-model tables, LAD boundaries, grid geometry, lookup tables and spatial operators). To run the full model you must also provide large datasets in their existing expected locations:
@@ -226,19 +230,46 @@ The modelling methods draw on Watson et al. (2021, 2023), ERA5 reanalysis and NE
 
 ## Release and reproducibility status
 
-**Pre-release research software.** The notebook workflows have not been independently verified end-to-end on a fresh environment with separately downloaded inputs. Before a tagged scientific release, see [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md) for unresolved package, data, tests, provenance and licence checks. An explicit repository software licence has not been identified in the supplied archive; **do not assume a licence until one is selected and committed**.
+**Pre-release research software.** GBHeat is under active development. The notebook workflows and automatic weather-data preparation have undergone initial testing; however, the complete modelling pipeline has not yet been independently validated end-to-end on a fresh environment. Users should verify model inputs, scenario configurations and generated outputs before using results in research or publications.
+
+The software licence and release documentation should be checked against the current repository before redistribution or reuse.
 
 ## Maintainers and contributions
 
 Developed within the **Institute for Energy Systems, School of Engineering, University of Edinburgh**. For questions, reproducibility reports and code improvements, use [GitHub Issues](https://github.com/Lavinjafari/GBHeatModel/issues). Please include your weather year, FES vintage, scenario, Python environment and a minimal error trace when reporting a problem.
 
-### Weather-dependent inputs (Zenodo)
+### Automatic weather-data preparation (Zenodo)
 
-The GBHeat temperature and heating-use-pattern input archives are hosted on [Zenodo (record 23734614)](https://zenodo.org/records/23734614). GBHeat can prepare inputs for a selected weather year using:
+GBHeat's historical weather-dependent input datasets are hosted on [Zenodo (record 23734614)](https://zenodo.org/records/23734614).
 
-```powershell
-python -m gbheatmodel.zenodo_inputs --year 2012 --kind temperature --download --extract
-python -m gbheatmodel.zenodo_inputs --year 2012 --kind patterns --download --extract
+When running `Notebooks/01_Heat_Demand_Profiles.ipynb`, users select their FES release, FES scenario, future model year and historical weather year. GBHeat then automatically checks whether the corresponding temperature and heating-demand-pattern inputs are available locally.
+
+The notebook invokes:
+
+```python
+from gbheatmodel.weather_inputs import ensure_weather_inputs
+
+ensure_weather_inputs(weather_year)
 ```
 
-The downloader caches the complete Zenodo archives for reuse, then extracts the selected year's files to the existing `data/air_temp/` and `data/heat_demand_profiles_patterns/` model-input directories. `air_temp_YEAR.csv` and `average_day_air_temp_YEAR.csv` are both recognised, when present in the temperature archive. Existing matching files are skipped; differing files are never overwritten automatically. On first use, downloading a single weather year may require downloading the entire archive (approximately 367 MB for temperature or 7.60 GB for patterns).
+If the required inputs are already available, GBHeat uses the existing files without downloading them again. Otherwise, it retrieves the relevant archives from Zenodo and extracts the selected weather-year data into the directories expected by the existing modelling modules:
+
+- `data/air_temp/air_temp_YEAR.csv`
+- `data/air_temp/average_day_air_temp_YEAR.csv`
+- `data/heat_demand_profiles_patterns/HD_heat_patterns_YEAR/`
+
+No manual extraction or modification of the modelling modules is required.
+
+**Optional manual download**
+
+Users may also prepare inputs independently of the notebook:
+
+```powershell
+python -m gbheatmodel.zenodo_inputs --year 2012 --download --extract
+```
+
+The downloader caches the complete archives for reuse. The initial download may require approximately 367 MB for the temperature archive and 7.60 GB for heating patterns.
+
+Existing matching files are preserved. Conflicting files are not overwritten automatically.
+
+**Validation status:** Automatic detection of existing weather-year inputs and actual temperature-archive extraction have been tested. End-to-end retrieval and extraction of the complete heating-pattern archive remain to be verified.
